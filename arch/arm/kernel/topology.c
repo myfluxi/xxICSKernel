@@ -227,6 +227,17 @@ unsigned long arch_scale_freq_power(struct sched_domain *sd, int cpu)
 }
 
 /*
+ * sched_domain flag configuration
+ */
+/* TODO add a config flag for this function */
+int arch_sd_sibling_asym_packing(void)
+{
+	if (sched_smt_power_savings || sched_mc_power_savings)
+		return SD_ASYM_PACKING;
+	return 0;
+}
+
+/*
  * default topology function
  */
 
