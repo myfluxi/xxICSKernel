@@ -21,6 +21,10 @@
 #include <linux/cpumask.h>
 #include <linux/cpuset.h>
 
+#ifdef CONFIG_CPU_FREQ
+#include <linux/cpufreq.h>
+#endif
+
 #include <asm/cputype.h>
 #include <asm/topology.h>
 
@@ -54,6 +58,7 @@ struct cputopo_arm cpu_topology[NR_CPUS];
  * using its own cpu_power even it's not always true because of
  * no_hz_idle_balance
  */
+
 static DEFINE_PER_CPU(unsigned int, cpu_scale);
 
 /*
@@ -65,17 +70,127 @@ unsigned int advanced_topology = 1;
 static void normal_cpu_topology_mask(void);
 static void (*set_cpu_topology_mask)(void) = normal_cpu_topology_mask;
 
-/* This table sets the cpu_power scale of a cpu according to the sched_mc mode.
- * The content of this table could be SoC specific so we should add a method to
- * overwrite this default table.
+#ifdef CONFIG_CPU_FREQ
+/*
+ * This struct describes parameters to compute cpu_power
+ */
+struct cputopo_power {
+	int id;
+	int max; /* max idx in the table */
+	unsigned int step; /* frequency step for the table */
+	unsigned int *table; /* table of cpu_power */
+};
+
+/* default table with one default cpu_power value */
+unsigned int table_default_power[1] = {
+	1024
+};
+
+static struct cputopo_power default_cpu_power = {
+	.max  = 1,
+	.step = 1,
+	.table = table_default_power,
+};
+
+/* CA-9 table with cpufreq modifying cpu_power */
+#define CPU_MAX_FREQ 10
+/* we use a 200Mhz step for scaling cpu power */
+#define CPU_TOPO_FREQ_STEP 200000
+/* This table sets the cpu_power scale of a cpu according to 2 inputs which are
+ * the frequency and the sched_mc mode. The content of this table could be SoC
+ * specific so we should add a method to overwrite this default table.
  * TODO: Study how to use DT for setting this table
  */
+unsigned int table_ca9_power[CPU_MAX_FREQ] = {
+/* freq< 200   400   600   800  1000  1200  1400  1600  1800  other*/
+	4096, 4096, 4096, 1024, 1024, 1024, 1024, 1024, 1024, 1024, /* Power save mode CA9 MP */
+};
+
+static struct cputopo_power CA9_cpu_power = {
+	.max  = CPU_MAX_FREQ,
+	.step = CPU_TOPO_FREQ_STEP,
+	.table = table_ca9_power,
+};
+
 #define ARM_CORTEX_A9_DEFAULT_SCALE 0
 #define ARM_CORTEX_A9_POWER_SCALE 1
 /* This table list all possible cpu power configuration */
-unsigned int table_config[2] = {
+struct cputopo_power *table_config[2] = {
+	&default_cpu_power,
+	&CA9_cpu_power,
+};
+
+struct cputopo_scale {
+	int id;
+	int freq;
+	struct cputopo_power *power;
+};
+
+/*
+ * The table will be mostly used by one cpu which will update the
+ * configuration for all cpu on a cpufreq notification
+ * or a sched_mc level change
+ */
+static struct cputopo_scale cpu_power[NR_CPUS];
+
+static void set_cpufreq_scale(unsigned int cpuid, unsigned int freq)
+{
+	unsigned int idx;
+
+	cpu_power[cpuid].freq = freq;
+
+	idx = freq / cpu_power[cpuid].power->step;
+	if (idx >= cpu_power[cpuid].power->max)
+		idx = cpu_power[cpuid].power->max - 1;
+
+	per_cpu(cpu_scale, cpuid) = cpu_power[cpuid].power->table[idx];
+	smp_wmb();
+}
+
+static void set_power_scale(unsigned int cpu, unsigned int idx)
+{
+	cpu_power[cpu].id = idx;
+	cpu_power[cpu].power = table_config[idx];
+
+	set_cpufreq_scale(cpu, cpu_power[cpu].freq);
+}
+
+static int topo_cpufreq_transition(struct notifier_block *nb,
+	unsigned long state, void *data)
+{
+	struct cpufreq_freqs *freqs = data;
+
+	if (state == CPUFREQ_POSTCHANGE || state == CPUFREQ_RESUMECHANGE)
+		set_cpufreq_scale(freqs->cpu, freqs->new);
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block topo_cpufreq_nb = {
+	.notifier_call = topo_cpufreq_transition,
+};
+
+static int topo_cpufreq_init(void)
+{
+	unsigned int cpu;
+
+	/* TODO set initial value according to current freq */
+
+	/* init core mask */
+	for_each_possible_cpu(cpu) {
+		cpu_power[cpu].freq = 0;
+		cpu_power[cpu].power = &default_cpu_power;
+	}
+
+	return cpufreq_register_notifier(&topo_cpufreq_nb,
+			CPUFREQ_TRANSITION_NOTIFIER);
+}
+#else
+#define ARM_CORTEX_A9_DEFAULT_SCALE 0
+#define ARM_CORTEX_A9_POWER_SCALE 0
+/* This table list all possible cpu power configuration */
+unsigned int table_config[1] = {
 	1024,
-	4096
 };
 
 static void set_power_scale(unsigned int cpu, unsigned int idx)
@@ -83,13 +198,16 @@ static void set_power_scale(unsigned int cpu, unsigned int idx)
 	per_cpu(cpu_scale, cpu) = table_config[idx];
 }
 
+static inline int topo_cpufreq_init(void) {return 0; }
+#endif
+
 static int init_cpu_power_scale(void)
 {
+	/* register cpufreq notifer */
+	topo_cpufreq_init();
+
 	/* Do we need to change default config */
 	advanced_topology = 1;
-
-	/* force topology update */
-	arch_update_cpu_topology();
 
 	/* Force a cpu topology update */
 	rebuild_sched_domains();
