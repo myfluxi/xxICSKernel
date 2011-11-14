@@ -18,6 +18,7 @@
 #include <linux/node.h>
 #include <linux/nodemask.h>
 #include <linux/sched.h>
+#include <linux/cpumask.h>
 
 #include <asm/cputype.h>
 #include <asm/topology.h>
@@ -47,7 +48,7 @@ struct cputopo_arm cpu_topology[NR_CPUS];
  * cpu topology mask management
  */
 
-unsigned int advanced_topology = 0;
+unsigned int advanced_topology = 1;
 
 /*
  * default topology function
@@ -110,6 +111,74 @@ static void normal_cpu_topology_mask(void)
 		default_cpu_topology_mask(cpuid);
 	}
 	smp_wmb();
+}
+
+/*
+ * For Cortex-A9 MPcore, we emulate a multi-package topology in power mode.
+ * The goal is to gathers tasks on 1 virtual package
+ */
+static void power_cpu_topology_mask_CA9(void)
+{
+
+	unsigned int cpuid, cpu;
+
+	for_each_possible_cpu(cpuid) {
+		struct cputopo_arm *cpuid_topo = &cpu_topology[cpuid];
+
+		for_each_possible_cpu(cpu) {
+			struct cputopo_arm *cpu_topo = &cpu_topology[cpu];
+
+			if ((cpuid_topo->socket_id == cpu_topo->socket_id)
+			&& ((cpuid & 0x1) == (cpu & 0x1))) {
+				cpumask_set_cpu(cpuid, &cpu_topo->core_sibling);
+				if (cpu != cpuid)
+					cpumask_set_cpu(cpu,
+						&cpuid_topo->core_sibling);
+
+				if (cpuid_topo->core_id == cpu_topo->core_id) {
+					cpumask_set_cpu(cpuid,
+						&cpu_topo->thread_sibling);
+					if (cpu != cpuid)
+						cpumask_set_cpu(cpu,
+							&cpuid_topo->thread_sibling);
+				}
+			}
+		}
+	}
+	smp_wmb();
+}
+
+#define ARM_FAMILY_MASK 0xFF0FFFF0
+#define ARM_CORTEX_A9_FAMILY 0x410FC090
+
+/* update_cpu_topology_policy select a cpu topology policy according to the
+ * available cores.
+ * TODO: The current version assumes that all cores are exactly the same which
+ * might not be true. We need to update it to take into account various
+ * configuration among which system with different kind of core.
+ */
+static int update_cpu_topology_policy(void)
+{
+	unsigned long cpuid;
+
+	if (sched_mc_power_savings == POWERSAVINGS_BALANCE_NONE) {
+		set_cpu_topology_mask = normal_cpu_topology_mask;
+		return 0;
+	}
+
+	cpuid = read_cpuid_id();
+	cpuid &= ARM_FAMILY_MASK;
+
+	switch (cpuid) {
+	case ARM_CORTEX_A9_FAMILY:
+		set_cpu_topology_mask = power_cpu_topology_mask_CA9;
+	break;
+	default:
+		set_cpu_topology_mask = normal_cpu_topology_mask;
+	break;
+	}
+
+	return 0;
 }
 
 /*
@@ -183,11 +252,14 @@ int arch_update_cpu_topology(void)
 	if (!advanced_topology)
 		return 0;
 
-	/* clear core mask */
+	/* clear core threads mask */
 	clear_cpu_topology_mask();
 
-	/* update core and thread sibling masks */
-	normal_cpu_topology_mask();
+	/* set topology policy */
+	update_cpu_topology_policy();
+
+	/* set topology mask*/
+	(*set_cpu_topology_mask)();
 
 	return 1;
 }
