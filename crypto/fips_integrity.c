@@ -74,3 +74,4 @@ void do_integrity_check(void)
 
 	return;
 }
+EXPORT_SYMBOL_GPL(do_integrity_check);
