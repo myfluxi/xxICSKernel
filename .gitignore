@@ -1,0 +1,10 @@
+zImage
+*.rej
+*.orig
+*.working
+*.test
+*.backup
+*.tar
+*.o
+*.bak
+*.old
