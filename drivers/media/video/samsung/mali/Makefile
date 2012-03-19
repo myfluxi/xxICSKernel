@@ -10,8 +10,8 @@
 
 OSKOS :=linux
 FILES_PREFIX=
-MALI_FILE_PREFIX := drivers/media/video/samsung/mali
-KBUILDROOT =
+MALI_FILE_PREFIX = $(KBUILD_SRC)/drivers/media/video/samsung/mali
+KBUILDROOT = $(KBUILD_OUTPUT)
 
 ifeq ($(CONFIG_MALI_DED_ONLY),y)
 USING_OS_MEMORY=0
@@ -84,7 +84,7 @@ ifeq ($(USING_OS_MEMORY),1)
         USING_MMU = 1
 endif
 # Check if a Mali Core sub module should be enabled, true or false returned
-#submodule_enabled = $(shell gcc $(DEFINES) -E $(MALI_FILE_PREFIX)/arch/config.h | grep type | grep -c $(2))
+#submodule_enabled = $(shell set -x ; echo $(KBUILD_SRC) 1>&2; gcc $(DEFINES) -E $(MALI_FILE_PREFIX)/arch/config.h | grep type | grep -c $(2))
 
 # Inside the kernel build system
 
@@ -135,10 +135,12 @@ obj-$(CONFIG_VIDEO_MALI400MP)		+= mali.o
 # Use our defines when compiling
 # MALI
 INCLUDES = \
+        -I$(KBUILD_SRC) \
+        -I$(KBUILD_OUTPUT) \
 		-I$(MALI_FILE_PREFIX)\
 		-I$(MALI_FILE_PREFIX)/platform\
 		-I$(MALI_FILE_PREFIX)/common \
-		-I$(MALI_FILE_PREFIX)/linux 
+		-I$(MALI_FILE_PREFIX)/linux
 
 EXTRA_CFLAGS += $(INCLUDES)\
 		$(DEFINES) 
