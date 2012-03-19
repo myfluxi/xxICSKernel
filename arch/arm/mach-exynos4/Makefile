@@ -39,7 +39,7 @@ obj-$(CONFIG_ARCH_EXYNOS5)	+= busfreq_opp_5250.o
 endif
 obj-$(CONFIG_SMP)		+= platsmp.o headsmp.o
 
-obj-$(CONFIG_EXYNOS_MCT)	+= mct.o
+obj-$(CONFIG_EXYNOS4_MCT)	+= mct.o
 
 obj-$(CONFIG_HOTPLUG_CPU)	+= hotplug.o
 
