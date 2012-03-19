@@ -1,4 +1,4 @@
-/* linux/arch/arm/mach-exynos4/include/mach/debug-macro.S
+/* linux/arch/arm/mach-exynos/include/mach/debug-macro.S
  *
  * Copyright (c) 2010-2011 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com

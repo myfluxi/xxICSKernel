@@ -1,4 +1,4 @@
-/* linux/arch/arm/mach-exynos4/mach-armlex4210.c
+/* linux/arch/arm/mach-exynos/mach-armlex4210.c
  *
  * Copyright (c) 2011 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
@@ -155,7 +155,6 @@ static struct platform_device *armlex4210_devices[] __initdata = {
 	&s3c_device_hsmmc3,
 	&s3c_device_rtc,
 	&s3c_device_wdt,
-	&exynos4_device_sysmmu,
 	&samsung_asoc_dma,
 	&armlex4210_smsc911x,
 	&exynos4_device_ahci,

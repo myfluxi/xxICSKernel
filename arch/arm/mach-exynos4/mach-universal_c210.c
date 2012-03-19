@@ -1,4 +1,4 @@
-/* linux/arch/arm/mach-exynos4/mach-universal_c210.c
+/* linux/arch/arm/mach-exynos/mach-universal_c210.c
  *
  * Copyright (c) 2010 Samsung Electronics Co., Ltd.
  *
@@ -613,7 +613,6 @@ static struct platform_device *universal_devices[] __initdata = {
 	&s3c_device_hsmmc2,
 	&s3c_device_hsmmc3,
 	&s3c_device_i2c5,
-
 	/* Universal Devices */
 	&universal_gpio_keys,
 	&s5p_device_onenand,

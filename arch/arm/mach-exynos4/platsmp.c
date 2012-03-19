@@ -1,4 +1,4 @@
-/* linux/arch/arm/mach-exynos4/platsmp.c
+/* linux/arch/arm/mach-exynos/platsmp.c
  *
  * Copyright (c) 2010-2011 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
@@ -28,15 +28,27 @@
 
 #include <mach/hardware.h>
 #include <mach/regs-clock.h>
+#include <mach/regs-pmu.h>
+#include <mach/smc.h>
 
-extern void exynos4_secondary_startup(void);
+#include <plat/cpu.h>
+#include <plat/exynos4.h>
+
+extern void exynos_secondary_startup(void);
+extern unsigned int gic_bank_offset;
+
+struct _cpu_boot_info {
+	void __iomem *power_base;
+	void __iomem *boot_base;
+};
+
+struct _cpu_boot_info cpu_boot_info[NR_CPUS];
 
 /*
  * control for which core is the next to come out of the secondary
  * boot "holding pen"
  */
-
-volatile int __cpuinitdata pen_release = -1;
+volatile int pen_release = -1;
 
 /*
  * Write pen_release in a way that is guaranteed to be visible to all
@@ -53,6 +65,9 @@ static void write_pen_release(int val)
 
 static void __iomem *scu_base_addr(void)
 {
+	if (soc_is_exynos5210() || soc_is_exynos5250())
+		return 0;
+
 	return (void __iomem *)(S5P_VA_SCU);
 }
 
@@ -60,12 +75,17 @@ static DEFINE_SPINLOCK(boot_lock);
 
 void __cpuinit platform_secondary_init(unsigned int cpu)
 {
+	void __iomem *dist_base = S5P_VA_GIC_DIST +
+				 (gic_bank_offset * cpu);
+	void __iomem *cpu_base = S5P_VA_GIC_CPU +
+				(gic_bank_offset * cpu);
+
 	/*
 	 * if any interrupts are already enabled for the primary
 	 * core (e.g. timer irq), then they will not have been enabled
 	 * for us: do so
 	 */
-	gic_secondary_init(0);
+	gic_secondary_init_base(0, dist_base, cpu_base);
 
 	/*
 	 * let the primary processor know we're out of the
@@ -80,15 +100,71 @@ void __cpuinit platform_secondary_init(unsigned int cpu)
 	spin_unlock(&boot_lock);
 }
 
+static int exynos_power_up_cpu(unsigned int cpu)
+{
+	unsigned int timeout;
+	unsigned int val;
+	void __iomem *power_base = cpu_boot_info[cpu].power_base;
+
+	val = __raw_readl(power_base);
+	if (!(val & S5P_CORE_LOCAL_PWR_EN)) {
+		__raw_writel(S5P_CORE_LOCAL_PWR_EN, power_base);
+
+		/* wait max 10 ms until cpu is on */
+		timeout = 10;
+		while (timeout) {
+			val = __raw_readl(power_base + 0x4);
+
+			if ((val & S5P_CORE_LOCAL_PWR_EN) == S5P_CORE_LOCAL_PWR_EN)
+				break;
+
+			mdelay(1);
+			timeout--;
+		}
+
+		if (timeout == 0) {
+			printk(KERN_ERR "cpu%d power up failed", cpu);
+			return -ETIMEDOUT;
+		}
+	}
+
+	return 0;
+}
+
+static void enable_foz(void)
+{
+	u32 val;
+	asm volatile(
+	"mrc   p15, 0, %0, c1, c0, 1\n"
+	"orr   %0, %0, #(1 << 3)\n"
+	"mcr   p15, 0, %0, c1, c0, 1"
+	: "=r" (val));
+}
+
 int __cpuinit boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
 	unsigned long timeout;
+	int ret;
 
 	/*
 	 * Set synchronisation state between this boot processor
 	 * and the secondary one
 	 */
 	spin_lock(&boot_lock);
+
+	ret = exynos_power_up_cpu(cpu);
+	if (ret) {
+		spin_unlock(&boot_lock);
+		return ret;
+	}
+
+	/*
+	* Enable write full line for zeros mode
+	*/
+	if (soc_is_exynos4210() || soc_is_exynos4212() || soc_is_exynos4412()) {
+		enable_foz();
+		smp_call_function((void (*)(void *))enable_foz, NULL, 0);
+	}
 
 	/*
 	 * The secondary processor is waiting to be released from
@@ -105,11 +181,21 @@ int __cpuinit boot_secondary(unsigned int cpu, struct task_struct *idle)
 	 * the boot monitor to read the system wide flags register,
 	 * and branch to the address found there.
 	 */
-	gic_raise_softirq(cpumask_of(cpu), 1);
-
 	timeout = jiffies + (1 * HZ);
 	while (time_before(jiffies, timeout)) {
 		smp_rmb();
+
+#ifdef CONFIG_ARM_TRUSTZONE
+		if (soc_is_exynos4412())
+			exynos_smc(SMC_CMD_CPU1BOOT, cpu, 0, 0);
+		else
+			exynos_smc(SMC_CMD_CPU1BOOT, 0, 0, 0);
+#endif
+		__raw_writel(BSYM(virt_to_phys(exynos_secondary_startup)),
+			     cpu_boot_info[cpu].boot_base);
+
+		smp_send_reschedule(cpu);
+
 		if (pen_release == -1)
 			break;
 
@@ -125,22 +211,36 @@ int __cpuinit boot_secondary(unsigned int cpu, struct task_struct *idle)
 	return pen_release != -1 ? -ENOSYS : 0;
 }
 
+static inline unsigned long exynos5_get_core_count(void)
+{
+	u32 val;
+
+	/* Read L2 control register */
+	asm volatile("mrc p15, 1, %0, c9, c0, 2" : "=r"(val));
+
+	/* core count : [25:24] of L2 control register + 1 */
+	val = ((val >> 24) & 3) + 1;
+
+	return val;
+}
+
 /*
  * Initialise the CPU possible map early - this describes the CPUs
  * which may be present or become present in the system.
  */
-
 void __init smp_init_cpus(void)
 {
-	void __iomem *scu_base = scu_base_addr();
 	unsigned int i, ncores;
 
-	ncores = scu_base ? scu_get_core_count(scu_base) : 1;
+	void __iomem *scu_base = scu_base_addr();
+
+	ncores = scu_base ? scu_get_core_count(scu_base) :
+			    exynos5_get_core_count();
 
 	/* sanity check */
 	if (ncores > NR_CPUS) {
 		printk(KERN_WARNING
-		       "EXYNOS4: no. of cores (%d) greater than configured "
+		       "EXYNOS: no. of cores (%d) greater than configured "
 		       "maximum of %d - clipping\n",
 		       ncores, NR_CPUS);
 		ncores = NR_CPUS;
@@ -163,13 +263,23 @@ void __init platform_smp_prepare_cpus(unsigned int max_cpus)
 	for (i = 0; i < max_cpus; i++)
 		set_cpu_present(i, true);
 
-	scu_enable(scu_base_addr());
+	if (scu_base_addr())
+		scu_enable(scu_base_addr());
+	else
+		flush_cache_all();
 
-	/*
-	 * Write the address of secondary startup into the
-	 * system-wide flags register. The boot monitor waits
-	 * until it receives a soft interrupt, and then the
-	 * secondary CPU branches to this address.
-	 */
-	__raw_writel(BSYM(virt_to_phys(exynos4_secondary_startup)), S5P_VA_SYSRAM);
+	/* Set up secondary boot base and core power cofiguration base address */
+	for (i = 1; i < max_cpus; i++) {
+#ifdef CONFIG_ARM_TRUSTZONE
+		cpu_boot_info[i].boot_base = S5P_VA_SYSRAM_NS + 0x1C;
+#else
+		if (soc_is_exynos4210() && (samsung_rev() >= EXYNOS4210_REV_1_1))
+			cpu_boot_info[i].boot_base = S5P_INFORM5;
+		else
+			cpu_boot_info[i].boot_base = S5P_VA_SYSRAM;
+#endif
+		if (soc_is_exynos4212() || soc_is_exynos4412())
+			cpu_boot_info[i].boot_base += (0x4 * i);
+		cpu_boot_info[i].power_base = S5P_ARM_CORE_CONFIGURATION(i);
+	}
 }

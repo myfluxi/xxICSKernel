@@ -1,4 +1,4 @@
-/* linux/arch/arm/mach-exynos4/dev-ahci.c
+/* linux/arch/arm/mach-exynos/dev-ahci.c
  *
  * Copyright (c) 2011 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com

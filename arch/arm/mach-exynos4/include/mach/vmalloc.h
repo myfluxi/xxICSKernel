@@ -1,4 +1,4 @@
-/* linux/arch/arm/mach-exynos4/include/mach/vmalloc.h
+/* linux/arch/arm/mach-exynos/include/mach/vmalloc.h
  *
  * Copyright (c) 2010-2011 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
@@ -17,6 +17,6 @@
 #ifndef __ASM_ARCH_VMALLOC_H
 #define __ASM_ARCH_VMALLOC_H __FILE__
 
-#define VMALLOC_END	0xF6000000UL
+#define VMALLOC_END	(unsigned long)CONFIG_S3C_ADDR_BASE
 
 #endif /* __ASM_ARCH_VMALLOC_H */

@@ -1,4 +1,4 @@
-/* linux/arch/arm/mach-exynos4/include/mach/pwm-clock.h
+/* linux/arch/arm/mach-exynos/include/mach/pwm-clock.h
  *
  * Copyright (c) 2010-2011 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com

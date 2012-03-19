@@ -1,4 +1,4 @@
-/* arch/arm/mach-exynos4/include/mach/entry-macro.S
+/* arch/arm/mach-exynos/include/mach/entry-macro.S
  *
  * Cloned from arch/arm/mach-realview/include/mach/entry-macro.S
  *
@@ -11,13 +11,32 @@
 
 #include <mach/hardware.h>
 #include <asm/hardware/gic.h>
+#include <mach/map.h>
 
 		.macro	disable_fiq
 		.endm
 
 		.macro  get_irqnr_preamble, base, tmp
-		ldr	\base, =gic_cpu_base_addr
+#ifdef CONFIG_ARCH_EXYNOS4
+		mov	\tmp, #0
+		mrc	p15, 0, \base, c0, c0, 5
+		and	\base, \base, #3
+		cmp	\base, #0
+		beq	1f
+		ldr	\tmp, =gic_bank_offset
+		ldr	\tmp, [\tmp]
+		cmp	\base, #1
+		beq	1f
+		cmp	\base, #2
+		addeq	\tmp, \tmp, \tmp
+		addne	\tmp, \tmp, \tmp, LSL #1
+#endif
+1:		ldr	\base, =gic_cpu_base_addr
 		ldr	\base, [\base]
+
+#ifdef CONFIG_ARCH_EXYNOS4
+		add	\base, \base, \tmp
+#endif
 		.endm
 
 		.macro  arch_ret_to_user, tmp1, tmp2
@@ -55,6 +74,22 @@
 		cmpne	\irqnr, \tmp
 		cmpcs	\irqnr, \irqnr
 		addne	\irqnr, \irqnr, #32
+#if defined(CONFIG_ARM_TRUSTZONE)
+		bne	101f
+
+		mrc	p15, 0, \tmp, c0, c0, 5
+		and	\tmp, \tmp, #0x3
+		cmp	\tmp, #1
+		cmpcs	\tmp, \tmp
+		beq	101f
+
+		cmp	\irqnr, #7
+		cmpcc	\irqnr, \irqnr
+		cmpne	\irqnr, #16
+		cmpcs	\irqnr, \irqnr
+		addne	\irqnr, \irqnr, #32
+101:
+#endif
 
 		.endm
 
@@ -75,10 +110,10 @@
 		/* As above, this assumes that irqstat and base are preserved.. */
 
 		.macro test_for_ltirq, irqnr, irqstat, base, tmp
-		bic	\irqnr, \irqstat, #0x1c00
-		mov	\tmp, #0
-		cmp	\irqnr, #29
-		moveq	\tmp, #1
-		streq	\irqstat, [\base, #GIC_CPU_EOI]
-		cmp	\tmp, #0
+		bic     \irqnr, \irqstat, #0x1c00
+		mov     \tmp, #0
+		cmp     \irqnr, #28
+		moveq   \tmp, #1
+		streq   \irqstat, [\base, #GIC_CPU_EOI]
+		cmp     \tmp, #0
 		.endm
