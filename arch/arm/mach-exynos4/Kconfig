@@ -1,4 +1,4 @@
-# arch/arm/mach-exynos/Kconfig
+# arch/arm/mach-exynos4/Kconfig
 #
 # Copyright (c) 2010-2011 Samsung Electronics Co., Ltd.
 #		http://www.samsung.com/
@@ -820,7 +820,7 @@ config PANEL_S2P
 endchoice
 
 if MACH_U1 || MACH_C1 || MACH_C1VZW || MACH_M0
-source "arch/arm/mach-exynos/Kconfig.local"
+source "arch/arm/mach-exynos4/Kconfig.local"
 endif
 
 config MACH_SMDK4X12
@@ -965,7 +965,7 @@ config MACH_S2PLUS
 
 endchoice
 
-source "arch/arm/mach-exynos/Kconfig.slp"
+source "arch/arm/mach-exynos4/Kconfig.slp"
 
 endmenu
 

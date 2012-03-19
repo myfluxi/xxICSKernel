@@ -1,4 +1,4 @@
-# arch/arm/mach-exynos/Makefile
+# arch/arm/mach-exynos4/Makefile
 #
 # Copyright (c) 2010-2011 Samsung Electronics Co., Ltd.
 #		http://www.samsung.com/
