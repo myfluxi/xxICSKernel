@@ -150,6 +150,8 @@ void set_in_fips_err()
 {
 	IN_FIPS_ERROR = FIPS_ERR;
 }
+
+EXPORT_SYMBOL_GPL(in_fips_err);
 #endif
 
 static void hexdump(unsigned char *buf, unsigned int len)
