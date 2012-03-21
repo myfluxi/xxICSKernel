@@ -201,6 +201,9 @@ struct mxt224_data {
 
 static u8 mov_hysti = 255;
 
+#define THRESHOLD_40	40
+#define THRESHOLD_50	50
+
 #define CLEAR_MEDIAN_FILTER_ERROR
 struct mxt224_data *copy_data;
 int touch_is_pressed;
@@ -448,7 +451,7 @@ static void mxt224_ta_probe(bool ta_status)
 	}
 
 	if (ta_status) {
-		copy_data->threshold = copy_data->tchthr_charging;
+		copy_data->threshold = THRESHOLD_50;
 		calcfg_dis = copy_data->calcfg_charging_e;
 		calcfg_en = copy_data->calcfg_charging_e | 0x20;
 		noise_threshold = copy_data->noisethr_charging;
@@ -460,10 +463,10 @@ static void mxt224_ta_probe(bool ta_status)
 #endif
 	} else {
 		if (copy_data->boot_or_resume == 1)
-			copy_data->threshold = copy_data->tchthr_batt_init;
+			copy_data->threshold = THRESHOLD_50;
 		else
-			copy_data->threshold = copy_data->tchthr_batt;
-		copy_data->threshold_e = copy_data->tchthr_batt_e;
+			copy_data->threshold = THRESHOLD_40;
+		copy_data->threshold_e = THRESHOLD_50;
 		calcfg_dis = copy_data->calcfg_batt_e;
 		calcfg_en = copy_data->calcfg_batt_e | 0x20;
 		noise_threshold = copy_data->noisethr_batt;
