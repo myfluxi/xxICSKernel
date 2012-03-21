@@ -2,6 +2,8 @@
  * Driver for keys on GPIO lines capable of generating interrupts.
  *
  * Copyright 2005 Phil Blundell
+ * Modified by DvTonder
+ * Full BLN compatibility by Fluxi
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -34,9 +36,6 @@
 #include <linux/regulator/machine.h>
 #include "u1-cypress-gpio.h"
 
-#include <linux/regulator/consumer.h>
-#include <linux/regulator/driver.h>
-#include <linux/regulator/machine.h>
 #include <plat/gpio-cfg.h>
 #include <mach/gpio.h>
 
@@ -63,6 +62,46 @@ touchkey register
 
 #define TK_FIRMWARE_VER	 0x04
 #define TK_MODULE_VER    0x00
+
+/*
+ * Standard CM7 LED Notification functionality.
+ */
+#include <linux/wakelock.h>
+
+#define ENABLE_BL	1
+#define BL_ALWAYS_ON	-1
+#define BL_ALWAYS_OFF	-2
+#ifdef CONFIG_TARGET_CM_KERNEL
+#define DISABLE_BL	2
+#else
+#define DISABLE_BL	0
+#define BL_STANDARD	3000
+#define BLN_VERSION 10
+#endif
+
+int screen_on = 1;
+int notification_timeout = -1;  /* never time out */
+#ifdef CONFIG_TARGET_CM_KERNEL
+int led_on = 0;
+int led_timeout = BL_ALWAYS_ON; /* never time out */
+int notification_enabled = -1;  /* disabled by default */
+#else
+int led_on = -1;
+int led_timeout = BL_STANDARD;	/* leds on for 3 secs standard */
+int notification_enabled = 0;	/* disabled by default */
+bool bln_blink_enabled = 0;
+#endif
+
+static struct wake_lock led_wake_lock;
+static DEFINE_SEMAPHORE(enable_sem);
+
+/* timer related declares */
+static struct timer_list led_timer;
+static void bl_off(struct work_struct *bl_off_work);
+static DECLARE_WORK(bl_off_work, bl_off);
+static struct timer_list notification_timer;
+static void notification_off(struct work_struct *notification_off_work);
+static DECLARE_WORK(notification_off_work, notification_off);
 
 static int touchkey_keycode[3] = { 0, KEY_MENU, KEY_BACK };
 static const int touchkey_count = sizeof(touchkey_keycode) / sizeof(int);
@@ -317,6 +356,7 @@ void touchkey_work_func(struct work_struct *p)
 	int retry = 10;
 	int keycode_type = 0;
 	int pressed;
+	int status;
 
 	set_touchkey_debug('a');
 
@@ -356,9 +396,19 @@ void touchkey_work_func(struct work_struct *p)
 		input_report_key(touchkey_driver->input_dev,
 				 touchkey_keycode[keycode_type], pressed);
 		input_sync(touchkey_driver->input_dev);
-		/* printk(KERN_DEBUG "[TouchKey] keycode:%d pressed:%d\n",
-		   touchkey_keycode[keycode_index], pressed); */
 	}
+
+	/* we have timed out or the lights should be on */
+	if (led_timer.expires > jiffies || led_timeout != BL_ALWAYS_OFF) {
+		status = 1;
+		i2c_touchkey_write((u8 *)&status, 1); /* turn on */
+	}
+
+	/* restart the timer */
+	if (led_timeout > 0) {
+		mod_timer(&led_timer, jiffies + msecs_to_jiffies(led_timeout));
+	}
+
 	set_touchkey_debug('A');
 	enable_irq(IRQ_TOUCH_INT);
 }
@@ -371,6 +421,281 @@ static irqreturn_t touchkey_interrupt(int irq, void *dummy)
 
 	return IRQ_HANDLED;
 }
+
+/*
+ * Start of the main LED Notify code block
+ */
+static void bl_off(struct work_struct *bl_off_work)
+{
+	int status;
+
+	/* do nothing if there is an active notification */
+	if (led_on == 1 || touchkey_enable != 1)
+		return;
+
+	/* we have timed out, turn the lights off */
+	status = 2;
+	i2c_touchkey_write((u8 *)&status, 1);
+
+	return;
+}
+
+static void handle_led_timeout(unsigned long data)
+{
+	/* we cannot call the timeout directly as it causes a kernel spinlock BUG, schedule it instead */
+	schedule_work(&bl_off_work);
+}
+
+static void notification_off(struct work_struct *notification_off_work)
+{
+	int status;
+
+	/* do nothing if there is no active notification */
+	if (led_on != 1 || touchkey_enable != 1)
+		return;
+
+	/* we have timed out, turn the lights off */
+	/* disable the regulators */
+	touchkey_led_ldo_on(0);	/* "touch_led" regulator */
+	touchkey_ldo_on(0);	/* "touch" regulator */
+
+	/* turn off the backlight */
+#ifdef CONFIG_TARGET_CM_KERNEL
+	status = 2; /* light off */
+#else
+	status = 0; /* light off */
+#endif
+	i2c_touchkey_write((u8 *)&status, 1);
+	touchkey_enable = 0;
+#ifdef CONFIG_TARGET_CM_KERNEL
+	led_on = 0;
+#else
+	led_on = -1;
+#endif
+
+	/* we were using a wakelock, unlock it */
+	if (wake_lock_active(&led_wake_lock)) {
+		wake_unlock(&led_wake_lock);
+	}
+
+	return;
+}
+
+static void handle_notification_timeout(unsigned long data)
+{
+	/* we cannot call the timeout directly as it causes a kernel spinlock BUG, schedule it instead */
+	schedule_work(&notification_off_work);
+}
+
+static ssize_t led_status_read( struct device *dev, struct device_attribute *attr, char *buf )
+{
+	return sprintf(buf,"%u\n", led_on);
+}
+
+static ssize_t notification_enabled_read( struct device *dev, struct device_attribute *attr, char *buf )
+{
+	return sprintf(buf,"%d\n", notification_enabled);
+}
+
+static ssize_t notification_enabled_write( struct device *dev, struct device_attribute *attr, const char *buf, size_t size )
+{
+	sscanf(buf,"%d\n", &notification_enabled);
+	return size;
+}
+
+static ssize_t led_status_write( struct device *dev, struct device_attribute *attr, const char *buf, size_t size )
+{
+	unsigned int data;
+	int status;
+
+	if(sscanf(buf,"%u\n", &data ) == 1) {
+
+		switch (data) {
+		case ENABLE_BL:
+			printk(KERN_DEBUG "[LED] ENABLE_BL\n");
+			if (notification_enabled > 0) {
+				/* we are using a wakelock, activate it */
+				if (!wake_lock_active(&led_wake_lock)) {
+					wake_lock(&led_wake_lock);
+				}
+
+				if (!screen_on) {
+					/* enable regulators */
+					touchkey_ldo_on(1);         /* "touch" regulator */
+					touchkey_led_ldo_on(1);		/* "touch_led" regulator */
+					touchkey_enable = 1;
+				}
+
+				/* enable the backlight */
+				status = 1;
+				i2c_touchkey_write((u8 *)&status, 1);
+				led_on = 1;
+
+				/* See if a timeout value has been set for the notification */
+				if (notification_timeout > 0) {
+					/* restart the timer */
+					mod_timer(&notification_timer, jiffies + msecs_to_jiffies(notification_timeout));
+				}
+			}
+			break;
+
+		case DISABLE_BL:
+			printk(KERN_DEBUG "[LED] DISABLE_BL\n");
+
+		        /* prevent race with late resume*/
+            		down(&enable_sem);
+
+			/* only do this if a notification is on already, do nothing if not */
+			if (led_on == 1) {
+
+				/* turn off the backlight */
+#ifdef CONFIG_TARGET_CM_KERNEL
+				status = 2; /* light off */
+#else
+				status = 0; /* light off */
+#endif
+				i2c_touchkey_write((u8 *)&status, 1);
+				led_on = 0;
+
+				if (!screen_on) {
+					/* disable the regulators */
+					touchkey_led_ldo_on(0);	/* "touch_led" regulator */
+					touchkey_ldo_on(0);	/* "touch" regulator */
+					touchkey_enable = 0;
+				}
+
+				/* a notification timeout was set, disable the timer */
+				if (notification_timeout > 0) {
+					del_timer(&notification_timer);
+				}
+
+				/* we were using a wakelock, unlock it */
+				if (wake_lock_active(&led_wake_lock)) {
+					wake_unlock(&led_wake_lock);
+				}
+			}
+
+            		/* prevent race */
+            		up(&enable_sem);
+
+			break;
+		}
+	}
+
+	return size;
+}
+
+static ssize_t led_timeout_read( struct device *dev, struct device_attribute *attr, char *buf )
+{
+	return sprintf(buf,"%d\n", led_timeout);
+}
+
+static ssize_t led_timeout_write( struct device *dev, struct device_attribute *attr, const char *buf, size_t size )
+{
+	sscanf(buf,"%d\n", &led_timeout);
+	return size;
+}
+
+#ifdef CONFIG_TARGET_CM_KERNEL
+static ssize_t notification_timeout_read( struct device *dev, struct device_attribute *attr, char *buf )
+{
+	return sprintf(buf,"%d\n", notification_timeout);
+}
+
+static ssize_t notification_timeout_write( struct device *dev, struct device_attribute *attr, const char *buf, size_t size )
+{
+	sscanf(buf,"%d\n", &notification_timeout);
+	return size;
+}
+
+static DEVICE_ATTR(led, S_IRUGO | S_IWUGO, led_status_read, led_status_write );
+static DEVICE_ATTR(led_timeout, S_IRUGO | S_IWUGO, led_timeout_read, led_timeout_write );
+static DEVICE_ATTR(notification_timeout, S_IRUGO | S_IWUGO, notification_timeout_read, notification_timeout_write );
+static DEVICE_ATTR(notification_enabled, S_IRUGO | S_IWUGO, notification_enabled_read, notification_enabled_write );
+#else
+static void enable_touchkey_backlights(void)
+{
+        int status = 1;
+        i2c_touchkey_write((u8 *)&status, 1);
+}
+
+static void disable_touchkey_backlights(void)
+{
+        int status = 2;
+        i2c_touchkey_write((u8 *)&status, 1);
+}
+
+static ssize_t blink_control_read( struct device *dev, struct device_attribute *attr, char *buf )
+{
+        return sprintf( buf, "%u\n", (bln_blink_enabled ? 1 : 0 ) );
+}
+
+static ssize_t blink_control_write( struct device *dev, struct device_attribute *attr, const char *buf, size_t size )
+{
+        unsigned int data;
+	int ret;
+
+        ret = sscanf(buf, "%u\n", &data);
+	if (ret != 1)
+		return -EINVAL;
+
+	if (data == 1) {
+		bln_blink_enabled = true;
+		disable_touchkey_backlights();
+	}
+
+	if (data == 0) {
+		bln_blink_enabled = false;
+		enable_touchkey_backlights();
+	}
+
+        return size;
+}
+
+static ssize_t version_read( struct device *dev, struct device_attribute *attr, char *buf )
+{
+	return sprintf(buf,"%d\n", BLN_VERSION);
+}
+
+static DEVICE_ATTR(blink_control, S_IRUGO | S_IWUGO, blink_control_read, blink_control_write );
+static DEVICE_ATTR(enabled, S_IRUGO | S_IWUGO, notification_enabled_read, notification_enabled_write );
+static DEVICE_ATTR(notification_led, S_IRUGO | S_IWUGO, led_status_read, led_status_write );
+static DEVICE_ATTR(led_timeout, S_IRUGO | S_IWUGO, led_timeout_read, led_timeout_write );
+static DEVICE_ATTR(version, S_IRUGO | S_IWUGO, version_read, NULL );
+#endif
+
+static struct attribute *bl_led_attributes[] = {
+#ifdef CONFIG_TARGET_CM_KERNEL
+	&dev_attr_led.attr,
+	&dev_attr_led_timeout.attr,
+	&dev_attr_notification_timeout.attr,
+	&dev_attr_notification_enabled.attr,
+#else
+        &dev_attr_blink_control.attr,
+        &dev_attr_enabled.attr,
+        &dev_attr_notification_led.attr,
+	&dev_attr_led_timeout.attr,
+        &dev_attr_version.attr,
+#endif
+	NULL
+};
+
+static struct attribute_group bln_notification_group = {
+	.attrs = bl_led_attributes,
+};
+
+static struct miscdevice led_device = {
+	.minor = MISC_DYNAMIC_MINOR,
+#ifdef CONFIG_TARGET_CM_KERNEL
+	.name  = "notification",
+#else
+	.name  = "backlightnotification",
+#endif
+};
+
+/*
+ * End of the main LED Notification code block, minor ones below
+ */
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
 static int sec_touchkey_early_suspend(struct early_suspend *h)
@@ -408,13 +733,18 @@ static int sec_touchkey_early_suspend(struct early_suspend *h)
 	/* disable ldo11 */
 	touchkey_ldo_on(0);
 
+	screen_on = 0;
 	return 0;
 }
 
 static int sec_touchkey_late_resume(struct early_suspend *h)
 {
+	int status;
 	set_touchkey_debug('R');
 	printk(KERN_DEBUG "[TouchKey] sec_touchkey_late_resume\n");
+
+	/* Avoid race condition with LED notification disable */
+	down(&enable_sem);
 
 	/* enable ldo11 */
 	touchkey_ldo_on(1);
@@ -432,17 +762,46 @@ static int sec_touchkey_late_resume(struct early_suspend *h)
 	irq_set_irq_type(IRQ_TOUCH_INT, IRQF_TRIGGER_FALLING);
 	s3c_gpio_cfgpin(_3_GPIO_TOUCH_INT, _3_GPIO_TOUCH_INT_AF);
 	s3c_gpio_setpull(_3_GPIO_TOUCH_INT, S3C_GPIO_PULL_NONE);
-	msleep(50);
 	touchkey_led_ldo_on(1);
 
 	touchkey_enable = 1;
 
-	if (touchled_cmd_reversed) {
-		touchled_cmd_reversed = 0;
-		i2c_touchkey_write((u8 *) &touchkey_led_status, 1);
-		printk(KERN_DEBUG "LED returned on\n");
+	screen_on = 1;
+	/* see if late_resume is running before DISABLE_BL */
+	if (led_on) {
+		/* if a notification timeout was set, disable the timer */
+		if (notification_timeout > 0) {
+			del_timer(&notification_timer);
+		}
+
+		/* we were using a wakelock, unlock it */
+		if (wake_lock_active(&led_wake_lock)) {
+			wake_unlock(&led_wake_lock);
+		}
+		/* force DISABLE_BL to ignore the led state because we want it left on */
+#ifdef CONFIG_TARGET_CM_KERNEL
+		led_on = 0;
+#else
+		led_on = -1;
+#endif
 	}
+
+	if (led_timeout != BL_ALWAYS_OFF) {
+		/* ensure the light is ON */
+		status = 1;
+		i2c_touchkey_write((u8 *)&status, 1);
+	}
+
+	/* restart the timer if needed */
+	if (led_timeout > 0) {
+		mod_timer(&led_timer, jiffies + msecs_to_jiffies(led_timeout));
+	}
+
+	/* all done, turn on IRQ */
 	enable_irq(IRQ_TOUCH_INT);
+
+	/* Avoid race condition with LED notification disable */
+	up(&enable_sem);
 
 	return 0;
 }
@@ -457,6 +816,7 @@ static int i2c_touchkey_probe(struct i2c_client *client,
 	unsigned char data;
 	int i;
 	int module_version;
+	int status;
 
 	printk(KERN_DEBUG "[TouchKey] i2c_touchkey_probe\n");
 
@@ -531,6 +891,29 @@ static int i2c_touchkey_probe(struct i2c_client *client,
 	touchkey_led_ldo_on(1);
 
 	set_touchkey_debug('K');
+
+	err = misc_register(&led_device);
+	if( err ){
+		printk(KERN_ERR "[LED Notify] sysfs misc_register failed.\n");
+	} else {
+		if( sysfs_create_group( &led_device.this_device->kobj, &bln_notification_group) < 0){
+			printk(KERN_ERR "[LED Notify] sysfs create group failed.\n");
+		}
+	}
+
+	/* Setup the timer for the timeouts */
+	setup_timer(&led_timer, handle_led_timeout, 0);
+	setup_timer(&notification_timer, handle_notification_timeout, 0);
+
+	/* wake lock for LED Notify */
+	wake_lock_init(&led_wake_lock, WAKE_LOCK_SUSPEND, "led_wake_lock");
+
+	/* turn off the LED if it is not supposed to be always on */
+	if (led_timeout != BL_ALWAYS_ON) {
+		status = 2;
+		i2c_touchkey_write((u8 *)&status, 1);
+	}
+
 	return 0;
 }
 
@@ -931,6 +1314,11 @@ static void __exit touchkey_exit(void)
 {
 	printk(KERN_DEBUG "[TouchKey] %s\n", __func__);
 	i2c_del_driver(&touchkey_i2c_driver);
+
+	misc_deregister(&led_device);
+	wake_lock_destroy(&led_wake_lock);
+	del_timer(&led_timer);
+	del_timer(&notification_timer);
 
 	if (touchkey_wq)
 		destroy_workqueue(touchkey_wq);
