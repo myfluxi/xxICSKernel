@@ -97,6 +97,11 @@ struct class *mdnie_class;
 
 struct mdnie_info *g_mdnie;
 
+u16 mdnie_user_mode = 0x0000;
+u16 mdnie_user_mcm_cb = 0x8000;
+u16 mdnie_user_mcm_cr = 0x0080;
+bool mdnie_user_de_control_enabled = false;
+
 int mdnie_send_sequence(struct mdnie_info *mdnie, const unsigned short *seq)
 {
 	int ret = 0, i = 0;
@@ -551,6 +556,105 @@ static ssize_t negative_store(struct device *dev,
 	return count;
 }
 
+static ssize_t user_mode_cmd_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n", mdnie_user_mode);
+}
+
+static ssize_t user_mode_cmd_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t size)
+{
+	struct mdnie_info *mdnie = dev_get_drvdata(dev);
+	int value = 0;
+
+	sscanf(buf, "%d", &value);
+
+	if (value == 0x0000 || value == 0x0006 || value == 0x0041 || value == 0x0045)
+		mdnie_user_mode = value;
+	else {
+		printk(KERN_ERR "[mDNIe] invalid user mode value.\n");
+		mdnie_user_mode = 0x0000;
+	}
+
+	set_mdnie_value(mdnie);
+
+	return size;
+}
+
+static ssize_t user_mcm_cb_cmd_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%u\n", (mdnie_user_mcm_cb >> 8));
+}
+
+static ssize_t user_mcm_cb_cmd_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t size)
+{
+	struct mdnie_info *mdnie = dev_get_drvdata(dev);
+	int value;
+
+	sscanf(buf, "%d", &value);
+
+	if (value >= 0 || value <= 255)
+		mdnie_user_mcm_cb = (u16)(value << 8);
+	else {
+		printk(KERN_ERR "[mDNIe] invalid user mcm cb value. 0 <= value <= 255\n");
+		mdnie_user_mcm_cb = (128 << 8);
+	}
+
+	set_mdnie_value(mdnie);
+
+	return size;
+}
+
+static ssize_t user_mcm_cr_cmd_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%u\n", mdnie_user_mcm_cr);
+}
+
+static ssize_t user_mcm_cr_cmd_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t size)
+{
+	struct mdnie_info *mdnie = dev_get_drvdata(dev);
+	int value;
+
+	sscanf(buf, "%d", &value);
+
+	if (value >= 0 || value <= 255)
+		mdnie_user_mcm_cr = (u16)value;
+	else {
+		printk(KERN_ERR "[mDNIe] invalid user mcm cr value. 0 <= value <= 255\n");
+		mdnie_user_mcm_cr = 128;
+	}
+
+	set_mdnie_value(mdnie);
+
+	return size;
+}
+
+static ssize_t user_de_control_enabled_cmd_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n", mdnie_user_de_control_enabled);
+}
+
+static ssize_t user_de_control_enabled_cmd_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t size)
+{
+	struct mdnie_info *mdnie = dev_get_drvdata(dev);
+	int value;
+
+	sscanf(buf, "%d", &value);
+
+	mdnie_user_de_control_enabled = value ? true : false;
+
+	set_mdnie_value(mdnie);
+
+	return size;
+}
+
 static struct device_attribute mdnie_attributes[] = {
 	__ATTR(mode, 0664, mode_show, mode_store),
 	__ATTR(scenario, 0664, scenario_show, scenario_store),
@@ -560,6 +664,10 @@ static struct device_attribute mdnie_attributes[] = {
 #endif
 	__ATTR(tunning, 0664, tunning_show, tunning_store),
 	__ATTR(negative, 0664, negative_show, negative_store),
+	__ATTR(user_mode_cmd, 0666, user_mode_cmd_show, user_mode_cmd_store),
+	__ATTR(user_mcm_cb_cmd, 0666, user_mcm_cb_cmd_show, user_mcm_cb_cmd_store),
+	__ATTR(user_mcm_cr_cmd, 0666, user_mcm_cr_cmd_show, user_mcm_cr_cmd_store),
+	__ATTR(user_de_control_enabled_cmd, 0666, user_de_control_enabled_cmd_show, user_de_control_enabled_cmd_store),
 	__ATTR_NULL,
 };
 
