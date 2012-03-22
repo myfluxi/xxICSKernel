@@ -3,7 +3,8 @@
 setup ()
 {
     if [ x = "x$ANDROID_BUILD_TOP" ] ; then
-        echo "Android build environment must be configured"
+        echo "Android build environment must be configured."
+        echo "Visit http://teamhacksung.org/wiki/index.php/CyanogenMod9:GT-I9100:How_to_build for instructions."
         exit 1
     fi
     . "$ANDROID_BUILD_TOP"/build/envsetup.sh
