@@ -51,6 +51,9 @@
 #if defined(CONFIG_S5P_MEM_CMA)
 #include <linux/cma.h>
 #endif
+#ifdef CONFIG_ANDROID_RAM_CONSOLE
+#include <linux/bootmem.h>
+#endif
 #ifdef CONFIG_ANDROID_PMEM
 #include <linux/android_pmem.h>
 #endif
@@ -5343,6 +5346,44 @@ static void __init mipi_fb_init(void)
 }
 #endif
 
+#ifdef CONFIG_ANDROID_RAM_CONSOLE
+static struct resource ram_console_resource[] = {
+	{
+		.flags = IORESOURCE_MEM,
+	}
+};
+
+static struct platform_device ram_console_device = {
+	.name = "ram_console",
+	.id = -1,
+	.num_resources = ARRAY_SIZE(ram_console_resource),
+	.resource = ram_console_resource,
+};
+
+static int __init setup_ram_console_mem(char *str)
+{
+	unsigned size = memparse(str, &str);
+
+	if (size && (*str == '@')) {
+		unsigned long long base = 0;
+
+		base = simple_strtoul(++str, &str, 0);
+		if (reserve_bootmem(base, size, BOOTMEM_EXCLUSIVE)) {
+			pr_err("%s: failed reserving size %d "
+			       "at base 0x%llx\n", __func__, size, base);
+			return -1;
+		}
+
+		ram_console_resource[0].start = base;
+		ram_console_resource[0].end = base + size - 1;
+		pr_err("%s: %x at %llx\n", __func__, size, base);
+	}
+	return 0;
+}
+
+__setup("ram_console=", setup_ram_console_mem);
+#endif
+
 #ifdef CONFIG_ANDROID_PMEM
 static struct android_pmem_platform_data pmem_pdata = {
 	.name = "pmem",
@@ -5650,6 +5691,9 @@ static struct platform_device *smdkc210_devices[] __initdata = {
 	&s5p_device_tvout,
 	&s5p_device_cec,
 	&s5p_device_hpd,
+#endif
+#ifdef CONFIG_ANDROID_RAM_CONSOLE
+	&ram_console_device,
 #endif
 #ifdef CONFIG_ANDROID_PMEM
 	&pmem_device,
