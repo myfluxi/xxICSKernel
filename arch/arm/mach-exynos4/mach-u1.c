@@ -6048,6 +6048,14 @@ static void __init smdkc210_map_io(void)
 	s5p_reserve_mem(S5P_RANGE_MFC);
 #endif
 
+#ifdef CONFIG_ANDROID_RAM_CONSOLE
+if (!reserve_bootmem(0x45000000, (1 << CONFIG_LOG_BUF_SHIFT), BOOTMEM_EXCLUSIVE)) {
+	ram_console_resource[0].start = 0x45000000;
+    ram_console_resource[0].end = ram_console_resource[0].start + (1 << CONFIG_LOG_BUF_SHIFT) - 1;
+    pr_err("%s ram_console_resource[0].start: %x, end: %x\n", __func__, ram_console_resource[0].start, ram_console_resource[0].end);	
+}
+#endif
+
 	/* as soon as INFORM3 is visible, sec_debug is ready to run */
 	sec_debug_init();
 }
