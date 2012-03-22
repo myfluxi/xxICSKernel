@@ -30,6 +30,11 @@
 #define EXYNOS4_ASV_ENABLED
 #endif
 
+#ifdef CONFIG_GPU_CLOCK_CONTROL
+extern int gpu_clock_control[2];
+extern int gpu_voltage_control[2];
+#endif
+
 #include "mali_device_pause_resume.h"
 #include <linux/workqueue.h>
 
@@ -157,16 +162,32 @@ static mali_bool set_mali_dvfs_status(u32 step,mali_bool boostup)
 	if (boostup) {
 #ifdef CONFIG_REGULATOR
 		/*change the voltage*/
+#ifdef CONFIG_GPU_CLOCK_CONTROL
+		mali_regulator_set_voltage(gpu_voltage_control[step], gpu_voltage_control[step]);
+#else
 		mali_regulator_set_voltage(mali_dvfs[step].vol, mali_dvfs[step].vol);
 #endif
+#endif
 		/*change the clock*/
+#ifdef CONFIG_GPU_CLOCK_CONTROL
+		mali_clk_set_rate(gpu_clock_control[step], mali_dvfs[step].freq);
+#else
 		mali_clk_set_rate(mali_dvfs[step].clock, mali_dvfs[step].freq);
+#endif
 	} else {
 		/*change the clock*/
+#ifdef CONFIG_GPU_CLOCK_CONTROL
+		mali_clk_set_rate(gpu_clock_control[step], mali_dvfs[step].freq);
+#else
 		mali_clk_set_rate(mali_dvfs[step].clock, mali_dvfs[step].freq);
+#endif
 #ifdef CONFIG_REGULATOR
 		/*change the voltage*/
+#ifdef CONFIG_GPU_CLOCK_CONTROL
+		mali_regulator_set_voltage(gpu_voltage_control[step], gpu_voltage_control[step]);
+#else
 		mali_regulator_set_voltage(mali_dvfs[step].vol, mali_dvfs[step].vol);
+#endif
 #endif
 	}
 
