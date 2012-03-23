@@ -32,6 +32,8 @@
 
 #include <trace/events/power.h>
 
+int exynos4210_volt_table[16];
+
 /**
  * The "cpufreq driver" - the arch- or hardware-dependent low
  * level driver of CPUFreq support, and its spinlock. This lock
@@ -553,6 +555,83 @@ static ssize_t show_scaling_setspeed(struct cpufreq_policy *policy, char *buf)
 	return policy->governor->show_setspeed(policy, buf);
 }
 
+static ssize_t show_UV_mV_table(struct cpufreq_policy *policy, char *buf) {
+
+      return sprintf(buf,
+"1600mhz: %d mV\n\
+1500mhz: %d mV\n\
+1400mhz: %d mV\n\
+1300mhz: %d mV\n\
+1200mhz: %d mV\n\
+1100mhz: %d mV\n\
+1000mhz: %d mV\n\
+900mhz: %d mV\n\
+800mhz: %d mV\n\
+700mhz: %d mV\n\
+600mhz: %d mV\n\
+500mhz: %d mV\n\
+400mhz: %d mV\n\
+300mhz: %d mV\n\
+200mhz: %d mV\n\
+100mhz: %d mV\n",
+		exynos4210_volt_table[0]/1000,
+		exynos4210_volt_table[1]/1000,
+		exynos4210_volt_table[2]/1000,
+		exynos4210_volt_table[3]/1000,
+		exynos4210_volt_table[4]/1000,
+		exynos4210_volt_table[5]/1000,
+		exynos4210_volt_table[6]/1000,
+		exynos4210_volt_table[7]/1000,
+		exynos4210_volt_table[8]/1000,
+		exynos4210_volt_table[9]/1000,
+		exynos4210_volt_table[10]/1000,
+		exynos4210_volt_table[11]/1000,
+		exynos4210_volt_table[12]/1000,
+		exynos4210_volt_table[13]/1000,
+		exynos4210_volt_table[14]/1000,
+		exynos4210_volt_table[15]/1000);
+}
+
+static ssize_t store_UV_mV_table(struct cpufreq_policy *policy,
+                                      const char *buf, size_t count) {
+
+	unsigned int ret = -EINVAL;
+	int i = 0;
+	ret = sscanf(buf, "%d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d",
+		&exynos4210_volt_table[0],
+		&exynos4210_volt_table[1],
+		&exynos4210_volt_table[2],
+		&exynos4210_volt_table[3],
+		&exynos4210_volt_table[4],
+		&exynos4210_volt_table[5],
+		&exynos4210_volt_table[6],
+		&exynos4210_volt_table[7],
+		&exynos4210_volt_table[8],
+		&exynos4210_volt_table[9],
+		&exynos4210_volt_table[10],
+		&exynos4210_volt_table[11],
+		&exynos4210_volt_table[12],
+		&exynos4210_volt_table[13],
+		&exynos4210_volt_table[14],
+		&exynos4210_volt_table[15]);
+
+	if(ret != 16) {
+		return -EINVAL;
+	} else {
+		for (i = 0; i < 16; i++) {
+			exynos4210_volt_table[i] *= 1000;
+
+			if (exynos4210_volt_table[i] > 1500000) {
+				exynos4210_volt_table[i] = 1500000;
+
+			} else if (exynos4210_volt_table[i] < 800000) {
+				exynos4210_volt_table[i] = 800000;
+			}
+		}
+	}
+	return count;
+}
+
 /**
  * show_scaling_driver - show the current cpufreq HW/BIOS limitation
  */
@@ -582,6 +661,7 @@ cpufreq_freq_attr_rw(scaling_min_freq);
 cpufreq_freq_attr_rw(scaling_max_freq);
 cpufreq_freq_attr_rw(scaling_governor);
 cpufreq_freq_attr_rw(scaling_setspeed);
+cpufreq_freq_attr_rw(UV_mV_table);
 
 static struct attribute *default_attrs[] = {
 	&cpuinfo_min_freq.attr,
@@ -595,6 +675,7 @@ static struct attribute *default_attrs[] = {
 	&scaling_driver.attr,
 	&scaling_available_governors.attr,
 	&scaling_setspeed.attr,
+	&UV_mV_table.attr,
 	NULL
 };
 
