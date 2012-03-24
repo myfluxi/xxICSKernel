@@ -524,7 +524,11 @@ static struct notifier_block exynos_cpufreq_policy_notifier = {
 
 static int exynos_cpufreq_cpu_init(struct cpufreq_policy *policy)
 {
-	policy->cur = policy->min = policy->max = exynos_getspeed(policy->cpu);
+	int ret;
+
+	policy->cur = policy->min = policy->max =
+		policy->max_suspend = policy->min_suspend =
+			exynos_getspeed(policy->cpu);
 
 	cpufreq_frequency_table_get_attr(exynos_info->freq_table, policy->cpu);
 
@@ -544,13 +548,15 @@ static int exynos_cpufreq_cpu_init(struct cpufreq_policy *policy)
 		cpumask_setall(policy->cpus);
 	}
 
-	cpufreq_frequency_table_cpuinfo(policy, exynos_info->freq_table);
+	ret = cpufreq_frequency_table_cpuinfo(policy, exynos_info->freq_table);
 
 	/* Safe default startup limits */
 	policy->max = 1200000;
+	policy->max_suspend = 500000;
 	policy->min = 200000;
+	policy->min_suspend = 200000;
 
-	return 0;
+	return ret;
 }
 
 static int exynos_cpufreq_reboot_notifier_call(struct notifier_block *this,
