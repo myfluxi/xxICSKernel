@@ -19,9 +19,9 @@ nod /dev/block/mmcblk1p1 600 0 0 b 179 17
 slink /init /stage1/init 777 0 0
 dir /proc 755 0 0
 dir /stage1 755 0 0
-file /stage1/busybox usr/galaxys2att_initramfs_files/busybox 755 0 0
-file /stage1/init usr/galaxys2att_initramfs_files/init 755 0 0
-file /stage1/read_boot_headers usr/galaxys2att_initramfs_files/read_boot_headers 755 0 0
+file /stage1/busybox usr/i777_initramfs_files/busybox 755 0 0
+file /stage1/init usr/i777_initramfs_files/init 755 0 0
+file /stage1/read_boot_headers usr/i777_initramfs_files/read_boot_headers 755 0 0
 dir /sys 755 0 0
 dir /mnt 755 0 0
 dir /mnt/.lfs 755 0 0
@@ -29,4 +29,4 @@ dir /lib 755 0 0
 dir /lib/modules 755 0 0
 dir /vendor 755 0 0
 dir /vendor/firmware 755 0 0
-file /vendor/firmware/mfc_fw.bin usr/galaxys2att_initramfs_files/mfc_fw.bin 644 0 0
+file /vendor/firmware/mfc_fw.bin usr/i777_initramfs_files/mfc_fw.bin 644 0 0

@@ -17,8 +17,8 @@ include
 !galaxys2_initramfs_files/mfc_fw.bin
 !galaxys2_initramfs_files/read_boot_headers
 #
-!galaxys2att_initramfs_files/busybox
-!galaxys2att_initramfs_files/init
-!galaxys2att_initramfs_files/mfc_fw.bin
-!galaxys2att_initramfs_files/read_boot_headers
+!i777_initramfs_files/busybox
+!i777_initramfs_files/init
+!i777_initramfs_files/mfc_fw.bin
+!i777_initramfs_files/read_boot_headers
 
