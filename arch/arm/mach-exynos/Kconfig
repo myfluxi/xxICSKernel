@@ -1,33 +1,48 @@
-# arch/arm/mach-exynos4/Kconfig
+# arch/arm/mach-exynos/Kconfig
 #
 # Copyright (c) 2010-2011 Samsung Electronics Co., Ltd.
 #		http://www.samsung.com/
 #
 # Licensed under GPLv2
 
-# Configuration options for the EXYNOS4
+# Configuration options for the EXYNOS
 
-if ARCH_EXYNOS4
+if ARCH_EXYNOS
+
+choice
+	prompt "EXYNOS system type"
+	default ARCH_EXYNOS4
+
+config ARCH_EXYNOS4
+	bool "Samsung Exynos4"
+	select ARM_ERRATA_743622
+	select ARM_ERRATA_751472
+	select ARM_ERRATA_754322
+	select ARM_ERRATA_764369
+	help
+	  Samsung EXYNOS4 series based systems
+
+config ARCH_EXYNOS5
+	bool "Samsung Exynos5"
+	select ARM_ERRATA_761171
+	select ARM_ERRATA_762974
+	select ARM_ERRATA_763722
+	help
+	  Samsung EXYNOS5 series based systems
+
+endchoice
 
 config CPU_EXYNOS4210
 	bool
 	select S3C_PL330_DMA
 	select PL310_ERRATA_727915
 	select ARM_ERRATA_753970
-    select ARM_ERRATA_743622
-	select ARM_ERRATA_751472
-	select ARM_ERRATA_754322
-	select ARM_ERRATA_764369
 	help
 	  Enable EXYNOS4210 CPU support
 
 config CPU_EXYNOS4212
 	bool
 	select S3C_PL330_DMA
-    select ARM_ERRATA_743622
-	select ARM_ERRATA_751472
-	select ARM_ERRATA_754322
-	select ARM_ERRATA_764369
 	help
 	  Enable EXYNOS4212 CPU support
 
@@ -35,12 +50,14 @@ config CPU_EXYNOS4412
 	bool
 	select S3C_PL330_DMA
 	select ARM_ERRATA_761320
-    select ARM_ERRATA_743622
-	select ARM_ERRATA_751472
-	select ARM_ERRATA_754322
-	select ARM_ERRATA_764369
 	help
 	  Enable EXYNOS4412 CPU support
+
+config CPU_EXYNOS5210
+	bool
+	select S3C_PL330_DMA
+	help
+	  Enable EXYNOS5210 CPU support
 
 config S5PV310_HI_ARMCLK_THAN_1_2GHZ
 	bool "Enable the higher ARM clock than 1.2GHz"
@@ -49,6 +66,28 @@ config S5PV310_HI_ARMCLK_THAN_1_2GHZ
 	  S5PV310 has different max arm clock. (i.e. 1.0GHz, 1.2GHz and 1.4GHz etc.)
 	  If you are using the chip to work at the high clock than 1.2GHz,
 	  activate this option.
+
+choice
+	prompt "EXYNOS5210 core type"
+	depends on CPU_EXYNOS5210
+	default CPU_A15
+
+config CPU_EXYNOS5210_A15
+	bool "A15 core"
+	help
+	  A15 dual core CPU support
+
+config CPU_EXYNOS5210_A5_IOP
+	bool "A5 IOP core"
+	help
+	  A5 single core CPU support
+endchoice
+
+config CPU_EXYNOS5250
+	bool
+	select S3C_PL330_DMA
+	help
+	  Enable EXYNOS5250 CPU support
 
 config EXYNOS4_CONTENT_PATH_PROTECTION
 	bool "Exynos4 Content Path Protection"
@@ -64,6 +103,13 @@ config EXYNOS4_PM
 	help
 	  Enable suspend and resume for Exynos4 series.
 
+config EXYNOS5_PM
+	bool "Exynos5 Power Management"
+	depends on (PM && ARCH_EXYNOS5)
+	default y
+	help
+	  Enable suspend and resume for Exynos5 series.
+
 config EXYNOS4_CPUIDLE
 	bool "Exynos4 CPUIDLE Feature"
 	depends on (CPU_IDLE && ARCH_EXYNOS4)
@@ -71,11 +117,23 @@ config EXYNOS4_CPUIDLE
 	help
 	  Enable CPUIDLE for Exynos4 series.
 
-config EXYNOS4_MCT
-	bool "Kernel timer support by MCT"
-    default y
+config EXYNOS5_CPUIDLE
+	bool "Exynos5 CPUIDLE Feature"
+	depends on (CPU_IDLE && ARCH_EXYNOS5)
+	default y
+	help
+	  Enable CPUIDLE for Exynos5 series.
+
+config EXYNOS_MCT
+	bool
+	default y
 	help
 	  Use MCT (Multi Core Timer) as kernel timers
+
+config EXYNOS5_DEV_AHCI
+	bool
+	help
+	  Compile in platform device definitions for AHCI SATA3.0
 
 config EXYNOS4_DEV_AHCI
 	bool
@@ -293,9 +351,37 @@ config EXYNOS4_SETUP_JPEG
 	help
 	  Common setup code for JPEG
 
+config EXYNOS5_DEV_GSC
+	bool
+	depends on VIDEO_EXYNOS_GSCALER
+	default y
+	help
+	  Compile in platform device definitions for GSC
+
+config EXYNOS5_DEV_FIMC_IS
+	bool
+	depends on VIDEO_EXYNOS5_FIMC_IS
+	default y
+	help
+	  Compile in platform device definition for FIMC-IS
+
+config EXYNOS5_SETUP_GSC
+	bool
+	depends on VIDEO_EXYNOS_GSCALER
+	default y
+	help
+	  Common setup code for GSC
+
 config EXYNOS4_ENABLE_CLOCK_DOWN
 	bool "ARM core clock down feature enable"
 	depends on EXYNOS4_CPUIDLE
+	default n
+	help
+	  ARM core clock down in idle time.
+
+config EXYNOS5_ENABLE_CLOCK_DOWN
+	bool "ARM core clock down feature enable"
+	depends on EXYNOS5_CPUIDLE
 	default n
 	help
 	  ARM core clock down in idle time.
@@ -306,9 +392,16 @@ config EXYNOS4_CPUFREQ
 	help
 	  Exynos4 cpufreq support
 
+config EXYNOS5_CPUFREQ
+	def_bool y
+	depends on CPU_FREQ && ARCH_EXYNOS5
+	help
+	  Exynos5 cpufreq support
+
 choice
 	prompt "Max CPU frequency"
 	default EXYNOS4X12_1400MHZ_SUPPORT
+	default EXYNOS5250_1400MHZ_SUPPORT
 
 config EXYNOS4X12_1500MHZ_SUPPORT
 	bool "Max 1500MHz CPUFREQ LEVEL"
@@ -333,6 +426,24 @@ config EXYNOS4212_1000MHZ_SUPPORT
 	depends on CPU_FREQ && CPU_EXYNOS4212
 	help
 	  Max 1.0Ghz support
+
+config EXYNOS5250_1400MHZ_SUPPORT
+	bool "Max 1400MHz CPUFREQ LEVEL"
+	depends on EXYNOS5_CPUFREQ && CPU_EXYNOS5250
+	help
+	  Max 1.4Ghz support for EXYNOS5250
+
+config EXYNOS5250_1200MHZ_SUPPORT
+	bool "Max 1200MHz CPUFREQ LEVEL"
+	depends on EXYNOS5_CPUFREQ && CPU_EXYNOS5250
+	help
+	  Max 1.2Ghz support for EXYNOS5250
+
+config EXYNOS5250_1000MHZ_SUPPORT
+	bool "Max 1000MHz CPUFREQ LEVEL"
+	depends on EXYNOS5_CPUFREQ && CPU_EXYNOS5250
+	help
+	  Max 1.0Ghz support for EXYNOS5250
 
 endchoice
 
@@ -373,7 +484,7 @@ endchoice
 endmenu
 
 menu "Busfreq Model"
-	depends on EXYNOS4_CPUFREQ
+	depends on EXYNOS4_CPUFREQ || EXYNOS5_CPUFREQ
 
 config BUSFREQ
 	bool "Busfreq with PPC/PPMU"
@@ -381,7 +492,7 @@ config BUSFREQ
 
 config BUSFREQ_OPP
 	bool "Busfreq with OPP"
-	depends on EXYNOS4_CPUFREQ
+	depends on EXYNOS4_CPUFREQ || EXYNOS5_CPUFREQ
 
 config DEVFREQ_BUS
 	bool "Busfreq support with Devfreq framework & Simple-Ondemand"
@@ -709,7 +820,7 @@ config PANEL_S2P
 endchoice
 
 if MACH_U1 || MACH_C1 || MACH_C1VZW || MACH_M0
-source "arch/arm/mach-exynos4/Kconfig.local"
+source "arch/arm/mach-exynos/Kconfig.local"
 endif
 
 config MACH_SMDK4X12
@@ -854,10 +965,204 @@ config MACH_S2PLUS
 
 endchoice
 
-source "arch/arm/mach-exynos4/Kconfig.slp"
+source "arch/arm/mach-exynos/Kconfig.slp"
 
 endmenu
 
+menu "EXYNOS5 Machines"
+	depends on ARCH_EXYNOS5
+
+config MACH_SMDK5210
+	bool "SMDK5210 board"
+	select CPU_EXYNOS5210
+	select S3C_DEV_HSMMC2
+	select S3C_DEV_HSMMC3
+	select S3C_DEV_I2C1
+	select S3C_DEV_I2C2
+	select S5P_DEV_DP
+	select S5P_DEV_FIMD1
+	select S5P_DEV_MFC
+	select S5P_DEV_USB_EHCI
+	select EXYNOS_DEV_PD
+	select EXYNOS4_SETUP_DP
+	select EXYNOS4_SETUP_FIMD
+	select EXYNOS4_SETUP_I2C1
+	select EXYNOS4_SETUP_I2C2
+	select EXYNOS4_SETUP_MFC
+	select EXYNOS4_SETUP_SDHCI
+	select EXYNOS4_SETUP_USB_PHY
+	select SAMSUNG_DEV_BACKLIGHT
+	select SAMSUNG_DEV_PWM
+	select S5P_DEV_I2C_HDMIPHY
+	select EXYNOS_DEV_SS_UDC
+	help
+	  Machine support for Samsung SMDK5210
+
+config MACH_SMDK5250
+	bool "SMDK5250 board"
+	select CPU_EXYNOS5250
+	select S3C_DEV_RTC
+	select S3C_DEV_WDT
+	select S3C_DEV_HSMMC2
+	select S3C_DEV_HSMMC3
+	select S3C_DEV_I2C1
+	select S3C_DEV_I2C2
+	select S3C_DEV_I2C4
+	select S3C_DEV_I2C5
+	select S3C_DEV_I2C7
+	select S5P_DEV_DP
+	select S5P_DEV_FIMD1
+	select S5P_DEV_USB_EHCI
+	select S5P_DEV_MFC
+	select S5P_DEV_FIMG2D
+	select S5P_DEV_ROTATOR
+	select S5P_DEV_USBGADGET
+	select S5P_DEV_I2C_HDMIPHY
+	select S5P_DEV_THERMAL
+	select EXYNOS_DEV_PD
+	select EXYNOS4_DEV_FIMC_LITE
+	select EXYNOS4_SETUP_I2C1
+	select EXYNOS4_SETUP_I2C2
+	select EXYNOS4_SETUP_I2C4
+	select EXYNOS4_SETUP_I2C5
+	select EXYNOS4_SETUP_I2C7
+	select EXYNOS4_SETUP_SDHCI
+	select EXYNOS4_SETUP_DP
+	select EXYNOS4_SETUP_FIMD
+	select EXYNOS4_SETUP_USB_PHY
+	select EXYNOS4_SETUP_MFC
+	select EXYNOS5_DEV_AHCI
+	select EXYNOS_DEV_SS_UDC
+	select SAMSUNG_DEV_BACKLIGHT
+	select SAMSUNG_DEV_PWM
+	help
+	  Machine support for Samsung SMDK5250
+
+config MACH_P11
+	bool "P11 board"
+	select CPU_EXYNOS5250
+	select S3C_DEV_RTC
+	select S3C_DEV_WDT
+	select S3C_DEV_HSMMC2
+	select S3C_DEV_HSMMC3
+	select S3C_DEV_I2C1
+	select S3C_DEV_I2C3
+	select S3C_DEV_I2C5
+	select S3C_DEV_I2C7
+	select S5P_GPIO_INT
+	select S5P_DEV_DP
+	select S5P_DEV_FIMD1
+	select S5P_DEV_USB_EHCI
+	select S5P_DEV_TV
+	select S5P_DEV_MFC
+	select S5P_DEV_FIMG2D
+	select S5P_DEV_I2C_HDMIPHY
+	select EXYNOS_DEV_PD
+	select EXYNOS4_DEV_FIMC_LITE
+	select EXYNOS4_SETUP_I2C1
+	select EXYNOS4_SETUP_I2C3
+	select EXYNOS4_SETUP_I2C5
+	select EXYNOS4_SETUP_I2C7
+	select EXYNOS4_SETUP_DP
+	select EXYNOS4_SETUP_SDHCI
+	select EXYNOS4_DEV_DWMCI
+	select EXYNOS4_SETUP_FIMD
+	select EXYNOS4_SETUP_USB_PHY
+	select SAMSUNG_DEV_BACKLIGHT
+	select SAMSUNG_DEV_PWM
+	select EXYNOS4_SETUP_MFC
+	select EXYNOS_DEV_SS_UDC
+	help
+	  Machine support for Samsung P11 board
+
+choice
+	prompt "P11 board"
+	depends on MACH_P11
+	default MACH_P11_01_BD
+
+config MACH_P11_01_BD
+	bool "P11 Rev 0.1 board"
+
+config MACH_P11_02_BD
+	bool "P11 Rev 0.2 board"
+
+config MACH_P11_04_BD
+	bool "P11 Rev 0.4 board"
+
+endchoice
+choice
+	prompt "P11 DP version"
+	depends on MACH_P11
+	default MACH_P11_DP_00
+
+config MACH_P11_DP_00
+	bool "P11 DP 0.0(evt0.0)"
+
+config MACH_P11_DP_01
+	bool "P11 DP 0.1(evt0.1)"
+
+endchoice
+
+config MACH_P10
+	bool "P10 board"
+	select CPU_EXYNOS5250
+	select S3C_DEV_RTC
+	select S3C_DEV_WDT
+	select S3C_DEV_HSMMC2
+	select S3C_DEV_HSMMC3
+	select S3C_DEV_I2C1
+	select S3C_DEV_I2C3
+	select S3C_DEV_I2C5
+	select S3C_DEV_I2C7
+	select S5P_GPIO_INT
+	select S5P_DEV_DP
+	select S5P_DEV_FIMD1
+	select S5P_DEV_USB_EHCI
+	select S5P_DEV_TV
+	select S5P_DEV_MFC
+	select S5P_DEV_FIMG2D
+	select S5P_DEV_I2C_HDMIPHY
+	select EXYNOS_DEV_PD
+	select EXYNOS4_DEV_FIMC_LITE
+	select EXYNOS4_SETUP_I2C1
+	select EXYNOS4_SETUP_I2C3
+	select EXYNOS4_SETUP_I2C5
+	select EXYNOS4_SETUP_I2C7
+	select EXYNOS4_SETUP_DP
+	select EXYNOS4_SETUP_SDHCI
+	select EXYNOS4_DEV_DWMCI
+	select EXYNOS4_SETUP_FIMD
+	select EXYNOS4_SETUP_USB_PHY
+	select SAMSUNG_DEV_BACKLIGHT
+	select SAMSUNG_DEV_PWM
+	select EXYNOS4_SETUP_MFC
+	select EXYNOS_DEV_SS_UDC
+	help
+	  Machine support for Samsung P10 board
+
+choice
+	prompt "P10 board"
+	depends on MACH_P10
+	default MACH_P10_00_BD
+
+config MACH_P10_00_BD
+	bool "P10 Rev 0.0 board"
+
+endchoice
+choice
+	prompt "P10 DP version"
+	depends on MACH_P10
+	default MACH_P10_DP_01
+
+config MACH_P10_DP_00
+	bool "P10 DP 0.0(evt0.0)"
+
+config MACH_P10_DP_01
+	bool "P10 DP 0.1(evt0.1)"
+
+endchoice
+
+endmenu
 
 menu "MMC/SD slot setup"
 depends on PLAT_S5P

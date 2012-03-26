@@ -130,7 +130,7 @@ extern int s3c_gpio_cfgpin_range(unsigned int start, unsigned int nr,
  * up or down settings, and it may be dependant on the chip that is being
  * used to whether the particular mode is available.
  */
-#if defined(CONFIG_ARCH_S5PV310) || defined(CONFIG_ARCH_EXYNOS4)
+#if defined(CONFIG_ARCH_S5PV310) || defined(CONFIG_ARCH_EXYNOS)
 #define S3C_GPIO_PULL_NONE	((__force s3c_gpio_pull_t)0x00)
 #define S3C_GPIO_PULL_DOWN	((__force s3c_gpio_pull_t)0x01)
 #define S3C_GPIO_PULL_UP	((__force s3c_gpio_pull_t)0x03)
@@ -140,7 +140,7 @@ extern int s3c_gpio_cfgpin_range(unsigned int start, unsigned int nr,
 #define S3C_GPIO_PULL_UP	((__force s3c_gpio_pull_t)0x02)
 #endif
 
-#if defined(CONFIG_ARCH_S5PV310) || defined(CONFIG_ARCH_EXYNOS4)
+#if defined(CONFIG_ARCH_S5PV310) || defined(CONFIG_ARCH_EXYNOS)
 /* need to move to mach/gpio.h */
 #define S3C_GPIO_SLP_OUT0       ((__force s3c_gpio_pull_t)0x00)
 #define S3C_GPIO_SLP_OUT1       ((__force s3c_gpio_pull_t)0x01)
