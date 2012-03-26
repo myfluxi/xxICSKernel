@@ -485,7 +485,12 @@ int exynos4210_cpufreq_init(struct exynos_dvfs_info *info)
 	}
 
 	info->mpll_freq_khz = rate;
-	info->pm_lock_idx = L3;
+	/*
+	 * Sleep of death fix for overclock freq tables.
+	 * Should always be the 800Mhz step as imposed
+	 * by the Samsung exynos hardware.	--Fluxi
+	*/
+	info->pm_lock_idx = L8;
 	info->pll_safe_idx = L2;
 	info->max_support_idx = max_support_idx;
 	info->min_support_idx = min_support_idx;
