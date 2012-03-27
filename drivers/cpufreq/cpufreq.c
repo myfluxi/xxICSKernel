@@ -1031,6 +1031,18 @@ static int cpufreq_add_dev(struct sys_device *sys_dev)
 		pr_debug("initialization failed\n");
 		goto err_unlock_policy;
 	}
+#ifdef CONFIG_HOTPLUG_CPU
+	for_each_online_cpu(sibling) {
+		struct cpufreq_policy *cp = per_cpu(cpufreq_cpu_data, sibling);
+		if (cp && cp->governor && (cpumask_test_cpu(cpu, cp->related_cpus))) {
+			policy->min = cp->min;
+			policy->min_suspend = cp->min_suspend;
+			policy->max = cp->max;
+			policy->max_suspend = cp->max_suspend;
+			break;
+		}
+	}
+#endif
 	policy->user_policy.min = policy->min;
 	policy->user_policy.min_suspend = policy->min_suspend;
 	policy->user_policy.max = policy->max;
@@ -1738,8 +1750,10 @@ static int __cpufreq_set_policy(struct cpufreq_policy *data,
 	data->max = policy->max;
 	data->max_suspend = policy->max_suspend;
 
-	pr_debug("new min and max freqs are %u - %u kHz\n",
-					data->min, data->max);
+	pr_debug("new min and max freqs are %u - %u kHz,\n	\
+		  min&max_suspend freqs are %u - %u kHz\n",
+				data->min, data->max,
+				data->min_suspend, data->max_suspend);
 
 	if (cpufreq_driver->setpolicy) {
 		data->policy = policy->policy;
