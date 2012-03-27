@@ -491,7 +491,7 @@ int exynos4210_cpufreq_init(struct exynos_dvfs_info *info)
 	 * by the Samsung exynos hardware.	--Fluxi
 	*/
 	info->pm_lock_idx = L8;
-	info->pll_safe_idx = L2;
+	info->pll_safe_idx = L6;
 	info->max_support_idx = max_support_idx;
 	info->min_support_idx = min_support_idx;
 	info->cpu_clk = cpu_clk;
