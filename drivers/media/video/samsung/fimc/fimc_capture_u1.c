@@ -339,11 +339,6 @@ static int fimc_capture_scaler_info(struct fimc_control *ctrl)
 
 	fimc_warn("%s: CamOut (%d, %d), TargetOut (%d, %d)\n", __func__, sx, sy, tx, ty);
 
-    // FIXME: correct CamOut resolution should come from HAL
-    sx = ctrl->cap->fmt.width;
-    sy = ctrl->cap->fmt.height;
-    fimc_warn("%s: <HACK> CamOut (%d, %d), TargetOut (%d, %d)\n", __func__, sx, sy, tx, ty);
-
 	if (sx <= 0 || sy <= 0) {
 		fimc_err("%s: invalid source size\n", __func__);
 		return -EINVAL;
