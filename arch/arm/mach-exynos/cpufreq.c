@@ -517,6 +517,8 @@ static int exynos_cpufreq_policy_notifier_call(struct notifier_block *this,
 
 	case CPUFREQ_INCOMPATIBLE:
 	case CPUFREQ_NOTIFY:
+			exynos_target(policy, policy->min, CPUFREQ_RELATION_L);
+			exynos_target(policy, policy->max, CPUFREQ_RELATION_H);
 	default:
 		break;
 	}
