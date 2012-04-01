@@ -503,7 +503,6 @@ static int exynos_cpufreq_policy_notifier_call(struct notifier_block *this,
 				unsigned long code, void *data)
 {
 	struct cpufreq_policy *policy = data;
-	struct cpufreq_frequency_table *freq_table = exynos_info->freq_table;
 
 	switch (code) {
 	case CPUFREQ_ADJUST:
@@ -518,10 +517,6 @@ static int exynos_cpufreq_policy_notifier_call(struct notifier_block *this,
 
 	case CPUFREQ_INCOMPATIBLE:
 	case CPUFREQ_NOTIFY:
-		if (policy->min >= freq_table[L15].frequency)
-			exynos_target(policy, policy->min, CPUFREQ_RELATION_L);
-		if (policy->max <= freq_table[L0].frequency)
-			exynos_target(policy, policy->max, CPUFREQ_RELATION_H);
 	default:
 		break;
 	}
