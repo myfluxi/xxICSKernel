@@ -1,6 +1,6 @@
 #
 # Automatically generated make config: don't edit
-# Linux/arm 3.0.15 Kernel Configuration
+# Linux/arm 3.0.27 Kernel Configuration
 #
 CONFIG_ARM=y
 CONFIG_HAVE_PWM=y
@@ -397,10 +397,11 @@ CONFIG_EXYNOS4_CPUFREQ=y
 # Support dynamic CPU Hotplug
 #
 CONFIG_EXYNOS_PM_HOTPLUG=y
-CONFIG_STAND_ALONE_POLICY=y
+# CONFIG_STAND_ALONE_POLICY is not set
 # CONFIG_WITH_DVFS_POLICY is not set
 # CONFIG_DVFS_NR_RUNNING_POLICY is not set
 # CONFIG_NR_RUNNING_POLICY is not set
+CONFIG_S5PV310_PM_HOTPLUG_POLICY=y
 
 #
 # Busfreq Model

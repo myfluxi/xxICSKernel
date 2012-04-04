@@ -480,6 +480,9 @@ config DVFS_NR_RUNNING_POLICY
 config NR_RUNNING_POLICY
 	bool "nr_running CPU hotplug"
 
+config S5PV310_PM_HOTPLUG_POLICY
+	bool "Old S5PV310 CPU hotplug"
+
 endchoice
 endmenu
 
