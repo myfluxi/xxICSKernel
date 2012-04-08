@@ -563,6 +563,10 @@ extern ssize_t show_UV_mV_table(struct cpufreq_policy *policy, char *buf);
 extern ssize_t store_UV_mV_table(struct cpufreq_policy *policy,
                                       const char *buf, size_t count);
 
+extern ssize_t show_asv_group(struct cpufreq_policy *policy, char *buf);
+extern ssize_t store_asv_group(struct cpufreq_policy *policy,
+                                      const char *buf, size_t count);
+
 /**
  * show_scaling_driver - show the current cpufreq HW/BIOS limitation
  */
@@ -596,6 +600,7 @@ cpufreq_freq_attr_rw(scaling_governor);
 cpufreq_freq_attr_rw(scaling_setspeed);
 /* UV table */
 cpufreq_freq_attr_rw(UV_mV_table);
+cpufreq_freq_attr_rw(asv_group);
 
 static struct attribute *default_attrs[] = {
 	&cpuinfo_min_freq.attr,
@@ -612,6 +617,7 @@ static struct attribute *default_attrs[] = {
 	&scaling_available_governors.attr,
 	&scaling_setspeed.attr,
 	&UV_mV_table.attr,
+	&asv_group.attr,
 	NULL
 };
 
