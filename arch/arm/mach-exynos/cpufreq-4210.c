@@ -24,6 +24,7 @@
 #include <plat/clock.h>
 
 #define CPUFREQ_LEVEL_END	L16
+#define DEFAULT_ASV_GROUP	3
 
 static int max_support_idx;
 static int min_support_idx = (CPUFREQ_LEVEL_END - 1);
@@ -400,18 +401,49 @@ static void exynos4210_set_frequency(unsigned int old_index,
 	}
 }
 
-static void __init set_volt_table(void)
+static void __init set_volt_table(unsigned int asv_group)
 {
-	unsigned int asv_group = 0;
 	unsigned int i;
 
 	printk(KERN_INFO "DVFS : VDD_ARM Voltage table set with %d Group\n", asv_group);
 
-	max_support_idx = L0;
 	for (i = 0 ; i < CPUFREQ_LEVEL_END ; i++) {
-				exynos4210_volt_table[i] =
-					asv_voltage_A[i][asv_group];
+			exynos4210_volt_table[i] =
+				asv_voltage_A[i][asv_group];
 	}
+}
+
+static unsigned int asv_group = DEFAULT_ASV_GROUP;
+
+void update_volt_table(unsigned int asv_group)
+{
+	unsigned int i;
+
+	printk(KERN_INFO "DVFS : VDD_ARM Voltage table updated with %d Group\n", asv_group);
+
+	for (i = 0 ; i < CPUFREQ_LEVEL_END ; i++) {
+			exynos4210_volt_table[i] =
+				asv_voltage_A[i][asv_group];
+	}
+}
+
+ssize_t show_asv_group(struct cpufreq_policy *policy, char *buf)
+{
+	return sprintf(buf, "asv_group: %d\n", asv_group);
+}
+
+ssize_t store_asv_group(struct cpufreq_policy *policy,
+				const char *buf, size_t count)
+{
+	unsigned int ret;
+	ret = sscanf(buf, "%d", &asv_group);
+
+	if (ret != 1 || asv_group < 0 || asv_group > 7)
+		return -EINVAL;
+	else
+		update_volt_table(asv_group);
+
+	return count;
 }
 
 #if defined(CONFIG_REGULATOR_MAX8997)
@@ -441,7 +473,7 @@ int exynos4210_cpufreq_init(struct exynos_dvfs_info *info)
 	unsigned int tmp;
 	unsigned long rate;
 
-	set_volt_table();
+	set_volt_table(asv_group);
 	exynos4210_cpufreq_set_pmic_vol_table();
 
 	cpu_clk = clk_get(NULL, "armclk");
