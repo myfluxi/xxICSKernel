@@ -11,7 +11,6 @@ setup ()
 
     KERNEL_DIR="$(dirname "$(readlink -f "$0")")"
     BUILD_DIR="$KERNEL_DIR/build"
-    MODULES=("drivers/samsung/fm_si4709/Si4709_driver.ko" "drivers/scsi/scsi_wait_scan.ko" "drivers/net/wireless/bcmdhd/dhd.ko")
 
     if [ x = "x$NO_CCACHE" ] && ccache -V &>/dev/null ; then
         CCACHE=ccache
@@ -32,6 +31,9 @@ build ()
     local target=$1
     echo "Building for $target"
     local target_dir="$BUILD_DIR/$target"
+    # init target specific modules list
+    local MODULESVAR="MODULES_$target[@]"
+    local MODULES=${!MODULESVAR}
     local module
     [ x = "x$NO_RM" ] && rm -fr "$target_dir"
     mkdir -p "$target_dir/usr"
@@ -59,6 +61,10 @@ targets=("$@")
 if [ 0 = "${#targets[@]}" ] ; then
     targets=(galaxys2 i777 galaxynote)
 fi
+
+MODULES_galaxys2=("drivers/samsung/fm_si4709/Si4709_driver.ko" "drivers/scsi/scsi_wait_scan.ko" "drivers/net/wireless/bcmdhd/dhd.ko")
+MODULES_galaxynote=("drivers/samsung/fm_si4709/Si4709_driver.ko" "drivers/scsi/scsi_wait_scan.ko" "drivers/net/wireless/bcmdhd/dhd.ko")
+MODULES_i777=("drivers/scsi/scsi_wait_scan.ko" "drivers/net/wireless/bcmdhd/dhd.ko")
 
 START=$(date +%s)
 
