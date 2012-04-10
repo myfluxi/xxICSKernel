@@ -24,7 +24,6 @@
 #include <plat/clock.h>
 
 #define CPUFREQ_LEVEL_END	L16
-#define DEFAULT_ASV_GROUP	3
 
 static int max_support_idx;
 static int min_support_idx = (CPUFREQ_LEVEL_END - 1);
@@ -413,7 +412,7 @@ static void __init set_volt_table(unsigned int asv_group)
 	}
 }
 
-static unsigned int asv_group = DEFAULT_ASV_GROUP;
+static unsigned int asv_group;
 
 void update_volt_table(unsigned int asv_group)
 {
@@ -429,7 +428,7 @@ void update_volt_table(unsigned int asv_group)
 
 ssize_t show_asv_group(struct cpufreq_policy *policy, char *buf)
 {
-	return sprintf(buf, "asv_group: %d\n", asv_group);
+	return sprintf(buf, "%d\n", asv_group);
 }
 
 ssize_t store_asv_group(struct cpufreq_policy *policy,
@@ -473,6 +472,7 @@ int exynos4210_cpufreq_init(struct exynos_dvfs_info *info)
 	unsigned int tmp;
 	unsigned long rate;
 
+	asv_group = exynos_result_of_asv & 0xF;
 	set_volt_table(asv_group);
 	exynos4210_cpufreq_set_pmic_vol_table();
 
