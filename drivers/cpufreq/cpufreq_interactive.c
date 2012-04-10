@@ -19,7 +19,6 @@
 #include <linux/cpu.h>
 #include <linux/cpumask.h>
 #include <linux/cpufreq.h>
-#include <linux/mutex.h>
 #include <linux/sched.h>
 #include <linux/tick.h>
 #include <linux/time.h>
