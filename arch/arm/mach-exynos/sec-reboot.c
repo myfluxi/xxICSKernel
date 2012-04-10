@@ -2,9 +2,9 @@
 #include <linux/pm.h>
 #include <asm/io.h>
 #include <asm/cacheflush.h>
-#include <mach/system.h>
 #include <mach/regs-pmu.h>
 #include <mach/gpio.h>
+#include <plat/system-reset.h>
 
 /* charger cable state */
 extern bool is_cable_attached;
