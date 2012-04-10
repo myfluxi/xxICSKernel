@@ -121,7 +121,7 @@ struct menu_device {
 	int		interval_ptr;
 };
 
-
+#if 0
 #define LOAD_INT(x) ((x) >> FSHIFT)
 #define LOAD_FRAC(x) LOAD_INT(((x) & (FIXED_1-1)) * 100)
 
@@ -132,6 +132,7 @@ static int get_loadavg(void)
 
 	return LOAD_INT(this) * 10 + LOAD_FRAC(this) / 10;
 }
+#endif
 
 static inline int which_bucket(unsigned int duration)
 {

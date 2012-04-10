@@ -115,3 +115,6 @@ obj-$(CONFIG_IP_SET) += ipset/
 
 # IPVS
 obj-$(CONFIG_IP_VS) += ipvs/
+
+# gcc 4.6 compiler bug: https://lkml.org/lkml/2011/7/25/344
+ccflags-y += -Wno-address

@@ -285,7 +285,6 @@ static int parse_enc_filter_parms(
 	struct ecryptfs_mount_crypt_stat *mcs, char *str)
 {
 	char *this_perm;
-	int count = 0;
 	if (!strcmp("*", str)) {
 		/*printk(KERN_ERR "fzhang need global filtering %s.\n",
 							this_perm); */

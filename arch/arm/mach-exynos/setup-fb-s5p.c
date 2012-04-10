@@ -35,6 +35,9 @@
 struct platform_device; /* don't need the contents */
 
 #ifdef CONFIG_FB_S5P
+#if defined(CONFIG_FB_S5P_WA101S) || defined(CONFIG_FB_S5P_LTE480WV) || \
+defined(CONFIG_FB_S5P_AMS369FG06) || defined(CONFIG_FB_S5P_LMS501KF03) || \
+defined(CONFIG_FB_S5P_HT101HD1)
 static void s3cfb_gpio_setup_24bpp(unsigned int start, unsigned int size,
 		unsigned int cfg, s5p_gpio_drvstr_t drvstr)
 {
@@ -50,6 +53,7 @@ static void s3cfb_gpio_setup_24bpp(unsigned int start, unsigned int size,
 	reg |= (1<<1);
 	__raw_writel(reg, S3C_VA_SYS + 0x0210);
 }
+#endif
 
 #if defined(CONFIG_FB_S5P_WA101S) || defined(CONFIG_FB_S5P_LTE480WV)
 void s3cfb_cfg_gpio(struct platform_device *pdev)

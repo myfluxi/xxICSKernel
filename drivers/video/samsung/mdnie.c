@@ -170,7 +170,7 @@ void set_mdnie_value(struct mdnie_info *mdnie)
 	}
 #endif
 
-	if (SCENARIO_IS_COLOR(mdnie->scenario)) {
+	if (SCENARIO_IS_COLOR((enum SCENARIO_COLOR_TONE)mdnie->scenario)) {
 		idx = mdnie->scenario - COLOR_TONE_1;
 		mdnie_send_sequence(mdnie, tune_color_tone[idx].seq);
 		dev_info(mdnie->dev, "mode=%d, scenario=%d, outdoor=%d, cabc=%d, %s\n",

@@ -47,7 +47,7 @@ int mali_boot_profiling = 0;
 
 /* Subsystem entrypoints: */
 static _mali_osk_errcode_t rendercore_subsystem_startup(mali_kernel_subsystem_identifier id);
-static void rendercore_subsystem_terminate(mali_kernel_subsystem_identifier id);
+//static void rendercore_subsystem_terminate(mali_kernel_subsystem_identifier id);
 #if USING_MMU
 static void rendercore_subsystem_broadcast_notification(mali_core_notification_message message, u32 data);
 #endif
@@ -171,6 +171,7 @@ static _mali_osk_errcode_t rendercore_subsystem_startup(mali_kernel_subsystem_id
 	MALI_SUCCESS;
 }
 
+#if 0
 /**
  * @brief Terminate the Rendercore subsystem.
  *
@@ -209,7 +210,7 @@ static void rendercore_subsystem_terminate(mali_kernel_subsystem_identifier id)
 
 	MALI_DEBUG_PRINT(2, ("Rendercore: subsystem global mutex terminated\n")) ;
 }
-
+#endif
 
 #if USING_MMU
 /**

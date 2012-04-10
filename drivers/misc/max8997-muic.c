@@ -1493,7 +1493,9 @@ static void max8997_muic_mhl_detect(struct work_struct *work)
 		if (mdata->mhl_cb)
 			mdata->mhl_cb(MAX8997_MUIC_ATTACHED);
 	}
+#ifndef CONFIG_MACH_U1
 out:
+#endif
 	mutex_unlock(&info->mutex);
 }
 extern struct device *switch_dev;

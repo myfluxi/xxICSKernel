@@ -446,6 +446,7 @@ static struct clksrc_clk exynos4_clk_pclk_acp = {
 	.reg_div = { .reg = EXYNOS4_CLKDIV_DMC0, .shift = 4, .size = 3 },
 };
 
+#ifdef CONFIG_CPU_EXYNOS4212
 static struct clk *exynos4_clkset_c2c_list[] = {
 	[0] = &exynos4_clk_mout_mpll.clk,
 	[1] = &exynos4_clk_sclk_apll.clk,
@@ -474,6 +475,7 @@ static struct clksrc_clk exynos4_clk_aclk_c2c = {
 	},
 	.reg_div = { .reg = EXYNOS4_CLKDIV_DMC1, .shift = 12, .size = 3 },
 };
+#endif
 
 /* Core list of CMU_TOP side */
 

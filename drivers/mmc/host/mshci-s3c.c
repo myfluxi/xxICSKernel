@@ -576,6 +576,7 @@ static int mshci_s3c_resume(struct platform_device *dev)
 	return 0;
 }
 
+#if 0
 static void mshci_s3c_shutdown(struct platform_device *dev, pm_message_t pm)
 {
 	struct mshci_host *host = platform_get_drvdata(dev);
@@ -586,7 +587,7 @@ static void mshci_s3c_shutdown(struct platform_device *dev, pm_message_t pm)
 	if (pdata->shutdown)
 		pdata->shutdown();
 }
-
+#endif
 
 #else
 #define mshci_s3c_suspend NULL

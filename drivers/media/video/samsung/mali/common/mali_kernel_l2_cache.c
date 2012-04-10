@@ -102,6 +102,7 @@ int mali_l2_max_reads = MALI400_L2_MAX_READS_DEFAULT;
  */
 static _mali_osk_errcode_t mali_l2_cache_initialize(mali_kernel_subsystem_identifier id);
 
+#if 0
 /**
  * Mali L2 cache subsystem shutdown function
  * Called by the driver core when the driver is unloaded.
@@ -109,6 +110,7 @@ static _mali_osk_errcode_t mali_l2_cache_initialize(mali_kernel_subsystem_identi
  * @param id Identifier assigned by the core to the L2 cache subsystem
  */
 static void mali_l2_cache_terminate(mali_kernel_subsystem_identifier id);
+#endif
 
 /**
  * L2 cache subsystem complete notification function.
@@ -189,7 +191,7 @@ static _mali_osk_errcode_t mali_l2_cache_initialize(mali_kernel_subsystem_identi
 }
 
 
-
+#if 0
 /* called if/when our module is unloaded */
 static void mali_l2_cache_terminate(mali_kernel_subsystem_identifier id)
 {
@@ -219,6 +221,7 @@ static void mali_l2_cache_terminate(mali_kernel_subsystem_identifier id)
 		#endif
 	}
 }
+#endif
 
 static _mali_osk_errcode_t mali_l2_cache_core_create(_mali_osk_resource_t * resource)
 {

@@ -49,7 +49,9 @@ static int exynos_pd_save(struct device *dev)
 
 static int exynos_pd_restore(struct device *dev)
 {
+#if !defined(CONFIG_CPU_EXYNOS4210)
 	struct samsung_pd_info *pdata = dev->platform_data;
+#endif
 	struct platform_device *pdev = to_platform_device(dev);
 	int ret = 0;
 

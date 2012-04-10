@@ -79,7 +79,6 @@ static ssize_t hdmi_set_audio_read(struct device *dev,
 static ssize_t hdmi_set_audio_store(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t size)
 {
-	char *after;
 	unsigned long value = !strncmp(buf, "1", 1) ? true : false;
 
 	printk(KERN_ERR "[HDMI] Change AUDIO PATH: %ld\n", value);

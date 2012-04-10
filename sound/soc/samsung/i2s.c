@@ -1104,7 +1104,6 @@ static int samsung_i2s_dai_probe(struct snd_soc_dai *dai)
 
 	i2s_clk_enable(i2s, false);
 
-probe_exit:
 	return 0;
 }
 

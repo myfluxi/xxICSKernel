@@ -89,7 +89,6 @@ s32 dhd_config_dongle(struct wl_priv *wl, bool need_lock)
 
 	dhd_dongle_up = true;
 
-default_conf_out:
 	if (need_lock)
 		rtnl_unlock();
 	return err;

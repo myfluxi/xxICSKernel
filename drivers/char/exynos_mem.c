@@ -140,6 +140,7 @@ outer_cache_ops:
 	}
 }
 
+#if 0
 static void exynos_mem_paddr_cache_clean(dma_addr_t start, size_t length)
 {
 	if (length > (size_t) L2_FLUSH_ALL) {
@@ -159,6 +160,7 @@ static void exynos_mem_paddr_cache_clean(dma_addr_t start, size_t length)
 		outer_clean_range(start, end);	/* L2 */
 	}
 }
+#endif
 
 long exynos_mem_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
