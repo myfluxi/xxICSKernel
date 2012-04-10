@@ -33,7 +33,7 @@ build ()
     local target_dir="$BUILD_DIR/$target"
     # init target specific modules list
     local MODULESVAR="MODULES_$target[@]"
-    local MODULES=${!MODULESVAR}
+    local MODULES=(${!MODULESVAR})
     local module
     [ x = "x$NO_RM" ] && rm -fr "$target_dir"
     mkdir -p "$target_dir/usr"
