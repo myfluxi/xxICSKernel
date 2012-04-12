@@ -23,6 +23,10 @@
 #include <linux/ktime.h>
 #include <linux/sched.h>
 
+#ifdef CONFIG_HAS_EARLYSUSPEND
+#include <linux/earlysuspend.h>
+#endif
+
 /*
  * dbs is used in this file as a shortform for demandbased switching
  * It helps to keep variable names smaller, simpler
@@ -122,6 +126,9 @@ static struct dbs_tuners {
 	unsigned int flex_sampling_rate;
 	unsigned int flex_duration;
 #endif
+#ifdef CONFIG_HAS_EARLYSUSPEND
+	int early_suspend;
+#endif
 } dbs_tuners_ins = {
 	.up_threshold = DEF_FREQUENCY_UP_THRESHOLD,
 	.sampling_down_factor = DEF_SAMPLING_DOWN_FACTOR,
@@ -129,6 +136,9 @@ static struct dbs_tuners {
 	.ignore_nice = 0,
 	.powersave_bias = 0,
 	.freq_step = 100,
+#ifdef CONFIG_HAS_EARLYSUSPEND
+	.early_suspend = -1,
+#endif
 };
 
 static inline cputime64_t get_cpu_idle_time_jiffy(unsigned int cpu,
@@ -699,6 +709,30 @@ static int should_io_be_busy(void)
 	return 0;
 }
 
+#ifdef CONFIG_HAS_EARLYSUSPEND
+static struct early_suspend early_suspend;
+unsigned int prev_up_threshold;
+unsigned int prev_freq_step;
+unsigned int prev_sampling_rate;
+static void cpufreq_ondemand_early_suspend(struct early_suspend *h)
+{
+	dbs_tuners_ins.early_suspend = 1;
+	prev_freq_step = dbs_tuners_ins.freq_step;
+	prev_sampling_rate = dbs_tuners_ins.sampling_rate;
+	prev_up_threshold = dbs_tuners_ins.up_threshold;
+	dbs_tuners_ins.freq_step = 20;
+	dbs_tuners_ins.sampling_rate *= 3;
+	dbs_tuners_ins.up_threshold = 95;
+}
+static void cpufreq_ondemand_late_resume(struct early_suspend *h)
+{
+	dbs_tuners_ins.early_suspend = -1;
+	dbs_tuners_ins.freq_step = prev_freq_step;
+	dbs_tuners_ins.sampling_rate = prev_sampling_rate;
+	dbs_tuners_ins.up_threshold = prev_up_threshold;
+}
+#endif
+
 static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 				   unsigned int event)
 {
@@ -759,6 +793,9 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 			dbs_tuners_ins.io_is_busy = should_io_be_busy();
 		}
 		mutex_unlock(&dbs_mutex);
+#ifdef CONFIG_HAS_EARLYSUSPEND
+		register_early_suspend(&early_suspend);
+#endif
 
 		mutex_init(&this_dbs_info->timer_mutex);
 		dbs_timer_init(this_dbs_info);
@@ -769,6 +806,9 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 
 		mutex_lock(&dbs_mutex);
 		mutex_destroy(&this_dbs_info->timer_mutex);
+#ifdef CONFIG_HAS_EARLYSUSPEND
+		unregister_early_suspend(&early_suspend);
+#endif
 		dbs_enable--;
 		mutex_unlock(&dbs_mutex);
 		if (!dbs_enable)
@@ -815,6 +855,12 @@ static int __init cpufreq_gov_dbs_init(void)
 		min_sampling_rate =
 			MIN_SAMPLING_RATE_RATIO * jiffies_to_usecs(10);
 	}
+
+#ifdef CONFIG_HAS_EARLYSUSPEND
+	early_suspend.level = EARLY_SUSPEND_LEVEL_DISABLE_FB;
+	early_suspend.suspend = cpufreq_ondemand_early_suspend;
+	early_suspend.resume = cpufreq_ondemand_late_resume;
+#endif
 
 	return cpufreq_register_governor(&cpufreq_gov_ondemand);
 }
