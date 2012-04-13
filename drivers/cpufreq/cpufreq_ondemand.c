@@ -41,8 +41,14 @@
 #define MICRO_FREQUENCY_MIN_SAMPLE_RATE		(10000)
 #define MIN_FREQUENCY_UP_THRESHOLD		(11)
 #define MAX_FREQUENCY_UP_THRESHOLD		(100)
+#define FREQ_STEP				(100)
+#define FREQ_STEP_SUSPEND			(20)
 #define UP_THRESHOLD_AT_MIN_FREQ		(40)
 #define FREQ_FOR_RESPONSIVENESS			(500000)
+#ifdef CONFIG_HAS_EARLYSUSPEND
+#define SAMPLING_FACTOR_SUSPEND			(3)
+#define DEF_FREQUENCY_UP_THRESHOLD_SUSPEND	(95)
+#endif
 
 /*
  * The polling frequency of this governor depends on the capability of
@@ -124,12 +130,15 @@ static struct dbs_tuners {
 	unsigned int powersave_bias;
 	unsigned int io_is_busy;
 	unsigned int freq_step;
+#ifdef CONFIG_HAS_EARLYSUSPEND
+	unsigned int sampling_factor_suspend;
+	unsigned int up_threshold_suspend;
+	unsigned int freq_step_suspend;
+	int early_suspend;
+#endif
 #ifdef CONFIG_CPU_FREQ_GOV_ONDEMAND_FLEXRATE
 	unsigned int flex_sampling_rate;
 	unsigned int flex_duration;
-#endif
-#ifdef CONFIG_HAS_EARLYSUSPEND
-	int early_suspend;
 #endif
 } dbs_tuners_ins = {
 	.up_threshold = DEF_FREQUENCY_UP_THRESHOLD,
@@ -137,8 +146,11 @@ static struct dbs_tuners {
 	.down_differential = DEF_FREQUENCY_DOWN_DIFFERENTIAL,
 	.ignore_nice = 0,
 	.powersave_bias = 0,
-	.freq_step = 100,
+	.freq_step = FREQ_STEP,
 #ifdef CONFIG_HAS_EARLYSUSPEND
+	.sampling_factor_suspend = SAMPLING_FACTOR_SUSPEND,
+	.up_threshold_suspend = DEF_FREQUENCY_UP_THRESHOLD_SUSPEND,
+	.freq_step_suspend = FREQ_STEP_SUSPEND,
 	.early_suspend = -1,
 #endif
 };
@@ -281,6 +293,11 @@ show_one(ignore_nice_load, ignore_nice);
 show_one(powersave_bias, powersave_bias);
 show_one(down_differential, down_differential);
 show_one(freq_step, freq_step);
+#ifdef CONFIG_HAS_EARLYSUSPEND
+show_one(sampling_factor_suspend, sampling_factor_suspend);
+show_one(up_threshold_suspend, up_threshold_suspend);
+show_one(freq_step_suspend, freq_step_suspend);
+#endif
 
 static ssize_t store_sampling_rate(struct kobject *a, struct attribute *b,
 				   const char *buf, size_t count)
@@ -416,7 +433,48 @@ static ssize_t store_freq_step(struct kobject *a, struct attribute *b,
 	dbs_tuners_ins.freq_step = min(input, 100u);
 	return count;
 }
+#ifdef CONFIG_HAS_EARLYSUSPEND
+static ssize_t store_sampling_factor_suspend(struct kobject *a, struct attribute *b,
+				   const char *buf, size_t count)
+{
+	unsigned int input;
+	int ret;
+	ret = sscanf(buf, "%u", &input);
+	if (ret != 1 || input > 10 ||
+			input < 1) {
+		return -EINVAL;
+	}
+	dbs_tuners_ins.sampling_factor_suspend = input;
+	return count;
+}
 
+static ssize_t store_up_threshold_suspend(struct kobject *a, struct attribute *b,
+				  const char *buf, size_t count)
+{
+	unsigned int input;
+	int ret;
+	ret = sscanf(buf, "%u", &input);
+
+	if (ret != 1 || input > MAX_FREQUENCY_UP_THRESHOLD ||
+			input < MIN_FREQUENCY_UP_THRESHOLD) {
+		return -EINVAL;
+	}
+	dbs_tuners_ins.up_threshold_suspend = input;
+	return count;
+}
+
+static ssize_t store_freq_step_suspend(struct kobject *a, struct attribute *b,
+				   const char *buf, size_t count)
+{
+	unsigned int input;
+	int ret;
+	ret = sscanf(buf, "%u", &input);
+	if (ret != 1)
+		return -EINVAL;
+	dbs_tuners_ins.freq_step_suspend = min(input, 100u);
+	return count;
+}
+#endif
 
 define_one_global_rw(sampling_rate);
 define_one_global_rw(io_is_busy);
@@ -426,6 +484,11 @@ define_one_global_rw(ignore_nice_load);
 define_one_global_rw(powersave_bias);
 define_one_global_rw(down_differential);
 define_one_global_rw(freq_step);
+#ifdef CONFIG_HAS_EARLYSUSPEND
+define_one_global_rw(sampling_factor_suspend);
+define_one_global_rw(up_threshold_suspend);
+define_one_global_rw(freq_step_suspend);
+#endif
 #ifdef CONFIG_CPU_FREQ_GOV_ONDEMAND_FLEXRATE
 static struct global_attr flexrate_request;
 static struct global_attr flexrate_duration;
@@ -444,6 +507,11 @@ static struct attribute *dbs_attributes[] = {
 	&io_is_busy.attr,
 	&down_differential.attr,
 	&freq_step.attr,
+#ifdef CONFIG_HAS_EARLYSUSPEND
+	&sampling_factor_suspend.attr,
+	&up_threshold_suspend.attr,
+	&freq_step_suspend.attr,
+#endif
 #ifdef CONFIG_CPU_FREQ_GOV_ONDEMAND_FLEXRATE
 	&flexrate_request.attr,
 	&flexrate_duration.attr,
@@ -737,9 +805,9 @@ static void cpufreq_ondemand_early_suspend(struct early_suspend *h)
 	prev_freq_step = dbs_tuners_ins.freq_step;
 	prev_sampling_rate = dbs_tuners_ins.sampling_rate;
 	prev_up_threshold = dbs_tuners_ins.up_threshold;
-	dbs_tuners_ins.freq_step = 20;
-	dbs_tuners_ins.sampling_rate *= 3;
-	dbs_tuners_ins.up_threshold = 95;
+	dbs_tuners_ins.freq_step = dbs_tuners_ins.freq_step_suspend;
+	dbs_tuners_ins.sampling_rate *= dbs_tuners_ins.sampling_factor_suspend;
+	dbs_tuners_ins.up_threshold = dbs_tuners_ins.up_threshold_suspend;
 }
 static void cpufreq_ondemand_late_resume(struct early_suspend *h)
 {
