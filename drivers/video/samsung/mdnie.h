@@ -106,6 +106,9 @@ struct mdnie_info {
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	struct early_suspend    early_suspend;
 #endif
+	unsigned short user_mode;
+	unsigned short user_cb;
+	unsigned short user_cr;
 };
 
 extern struct mdnie_info *g_mdnie;
@@ -113,13 +116,5 @@ extern struct mdnie_info *g_mdnie;
 int mdnie_send_sequence(struct mdnie_info *mdnie, const unsigned short *seq);
 extern void set_mdnie_value(struct mdnie_info *mdnie);
 extern int mdnie_txtbuf_to_parsing(char const *pFilepath);
-
-extern u16 mdnie_user_mode;
-extern u16 mdnie_user_mcm_cb;
-extern u16 mdnie_user_mcm_cr;
-extern bool mdnie_user_de_control_enabled;
-extern u16 mdnie_user_de_sharpness;
-extern u16 mdnie_user_de_threshold;
-extern u16 mdnie_user_cs_gain;
 
 #endif /* __MDNIE_H__ */
