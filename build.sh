@@ -62,9 +62,9 @@ if [ 0 = "${#targets[@]}" ] ; then
     targets=(galaxys2 i777 galaxynote)
 fi
 
-MODULES_galaxys2=("drivers/samsung/fm_si4709/Si4709_driver.ko" "drivers/scsi/scsi_wait_scan.ko" "drivers/net/wireless/bcmdhd/dhd.ko" "fs/cifs/cifs.ko")
+MODULES_galaxys2=("drivers/samsung/fm_si4709/Si4709_driver.ko" "drivers/scsi/scsi_wait_scan.ko" "drivers/net/wireless/bcmdhd/dhd.ko" "fs/cifs/cifs.ko" "crypto/md4.ko" "net/dns_resolver/dns_resolver.ko")
 MODULES_galaxynote=("drivers/samsung/fm_si4709/Si4709_driver.ko" "drivers/scsi/scsi_wait_scan.ko" "drivers/net/wireless/bcmdhd/dhd.ko")
-MODULES_i777=("drivers/scsi/scsi_wait_scan.ko" "drivers/net/wireless/bcmdhd/dhd.ko" "fs/cifs/cifs.ko")
+MODULES_i777=("drivers/scsi/scsi_wait_scan.ko" "drivers/net/wireless/bcmdhd/dhd.ko" "fs/cifs/cifs.ko"  "crypto/md4.ko" "net/dns_resolver/dns_resolver.ko")
 
 START=$(date +%s)
 
