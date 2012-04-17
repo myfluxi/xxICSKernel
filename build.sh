@@ -39,7 +39,7 @@ build ()
     mkdir -p "$target_dir/usr"
     cp "$KERNEL_DIR/usr/"*.list "$target_dir/usr"
     sed "s|usr/|$KERNEL_DIR/usr/|g" -i "$target_dir/usr/"*.list
-    [ x = "x$NO_DEFCONFIG" ] && mka -C "$KERNEL_DIR" O="$target_dir" android_${target}_defconfig ARCH=arm HOSTCC="$CCACHE gcc"
+    [ x = "x$NO_DEFCONFIG" ] && mka -C "$KERNEL_DIR" O="$target_dir" cyanogenmod_${target}_defconfig ARCH=arm HOSTCC="$CCACHE gcc"
     if [ x = "x$NO_BUILD" ] ; then
         mka -C "$KERNEL_DIR" O="$target_dir" ARCH=arm HOSTCC="$CCACHE gcc" CROSS_COMPILE="$CCACHE $CROSS_PREFIX" modules
         mka -C "$KERNEL_DIR" O="$target_dir" ARCH=arm HOSTCC="$CCACHE gcc" CROSS_COMPILE="$CCACHE $CROSS_PREFIX" zImage
