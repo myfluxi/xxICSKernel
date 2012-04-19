@@ -686,7 +686,7 @@ static void dbs_check_cpu(struct cpu_dbs_info_s *this_dbs_info)
 			up_threshold = dbs_tuners_ins.up_threshold_min_freq;
 	}
 
-	if (max_load_freq > dbs_tuners_ins.up_threshold * policy->cur) {
+	if (max_load_freq > up_threshold * policy->cur) {
 		int inc = (policy->max * dbs_tuners_ins.freq_step) / 100;
 		int target = min(policy->max, policy->cur + inc);
 		/* If switching to max speed, apply sampling_down_factor */
