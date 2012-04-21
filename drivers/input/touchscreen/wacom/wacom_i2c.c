@@ -561,7 +561,7 @@ static ssize_t epen_checksum_store(struct device *dev,
 				   const char *buf, size_t count)
 {
 	struct wacom_i2c *wac_i2c = dev_get_drvdata(dev);
-	int ret;
+	int ret = -1;
 	int val;
 	int i;
 	int retry = 3;
