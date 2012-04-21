@@ -25,7 +25,7 @@
 #include <linux/interrupt.h>
 #include <linux/slab.h>
 #include <plat/gpio-cfg.h>
-#include <mach/gpio-p2.h>
+//#include <mach/gpio-p2.h>
 
 
 /* Slave address */
