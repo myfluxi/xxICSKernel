@@ -354,8 +354,8 @@ CFLAGS_KERNEL	=
 AFLAGS_KERNEL	=
 CFLAGS_GCOV	= -fprofile-arcs -ftest-coverage
 XX_A9		= -marm -mtune=cortex-a9 -mfpu=neon -march=armv7-a
-XX_GRAPHITE	= -finline-functions -funswitch-loops -fpredictive-commoning \
-		  -fgcse-after-reload -ftree-vectorize -fipa-cp-clone
+XX_GRAPHITE	= -fgraphite-identity -floop-block -ftree-loop-linear \
+		  -floop-strip-mine -ftree-loop-distribution
 XX_MODULO	= -fmodulo-sched -fmodulo-sched-allow-regmoves
 
 # Use LINUXINCLUDE when you must reference the include/ directory.
