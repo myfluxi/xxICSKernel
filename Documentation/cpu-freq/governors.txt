@@ -278,6 +278,9 @@ please see the inline comments at the begging of the code (smartass2.c).
 
 
 
+boost: If non-zero, immediately boost speed of all CPUs to
+hispeed_freq.  If zero, allow CPU speeds to drop below hispeed_freq.
+
 3. The Governor Interface in the CPUfreq Core
 =============================================
 
