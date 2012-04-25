@@ -79,7 +79,12 @@ int mali_dvfs_control=0;
 
 /*dvfs table*/
 mali_dvfs_table mali_dvfs[MALI_DVFS_STEPS]={
+#if defined(CONFIG_MACH_Q1_BD)
+                        /* more pixels to push and bigger battery */
+			/*step 0*/{100  ,1000000    , 950000},
+#else
 			/*step 0*/{66   ,1000000    , 925000},
+#endif
 			/*step 1*/{160  ,1000000    , 950000},
 			/*step 2*/{267  ,1000000    ,1000000} };
 
@@ -88,7 +93,28 @@ mali_dvfs_table mali_dvfs[MALI_DVFS_STEPS]={
 #define ASV_8_LEVEL	8
 #define ASV_5_LEVEL	5
 #define ASV_LEVEL_SUPPORT 0
+#if defined(CONFIG_MACH_Q1_BD)
+static unsigned int asv_3d_volt_5_table[ASV_5_LEVEL][MALI_DVFS_STEPS] = {
+	/* L3 (100MHz) L2(160MHz), L1(267MHz) */
+        {1000000, 1000000, 1100000},	/* S */
+	{1000000, 1000000, 1100000},	/* A */
+	{ 950000,  950000, 1000000},	/* B */
+	{ 950000,  950000, 1000000},	/* C */
+	{ 950000,  950000,  950000},	/* D */
+};
 
+static unsigned int asv_3d_volt_8_table[ASV_8_LEVEL][MALI_DVFS_STEPS] = {
+	/* L3 (100MHz) L2(160MHz), L1(267MHz) */
+        {1000000, 1000000, 1100000},	/* SS */
+	{1000000, 1000000, 1100000},	/* A1 */
+	{1000000, 1000000, 1100000},	/* A2 */
+	{ 950000,  950000, 1000000},	/* B1 */
+	{ 950000,  950000, 1000000},	/* B2 */
+	{ 950000,  950000, 1000000},	/* C1 */
+	{ 950000,  950000, 1000000},	/* C2 */
+	{ 950000,  950000,  950000},	/* D1 */
+};
+#else
 static unsigned int asv_3d_volt_5_table[ASV_5_LEVEL][MALI_DVFS_STEPS] = {
 	/* L3 (66MHz) L2(160MHz), L1(267MHz) */
         { 975000, 1000000, 1100000},	/* S */
@@ -109,6 +135,7 @@ static unsigned int asv_3d_volt_8_table[ASV_8_LEVEL][MALI_DVFS_STEPS] = {
 	{ 925000,  950000, 1000000},	/* C2 */
 	{ 925000,  950000,  950000},	/* D1 */
 };
+#endif
 #endif
 
 static u32 mali_dvfs_utilization = 255;
