@@ -612,7 +612,7 @@ int _mali_dev_platform_register(void)
 #endif
 
 #ifdef CONFIG_GPU_CLOCK_CONTROL
-	gpu_control_start();
+	gpu_clock_control_start();
 	gpu_voltage_control_start();
 #endif
 
