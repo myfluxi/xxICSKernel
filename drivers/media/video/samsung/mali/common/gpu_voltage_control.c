@@ -5,6 +5,8 @@
  *  twitter - @xdanetarchy
  *  XDA-developers - netarchy
  *
+ *  Modified for SiyahKernel
+ *
  *  This program is free software; you can redistribute  it and/or modify it
  *  under  the terms of the GNU General Public License as published by the
  *  Free Software Foundation;
@@ -16,34 +18,49 @@
 
 #include "gpu_voltage_control.h"
 
-#if defined(CONFIG_GPU_UNDERVOLTING)
-int gpu_voltage_control[2] = { 850000, 950000 };
-#else
-int gpu_voltage_control[2] = { 950000, 1000000 };
-#endif
+#define MIN_VOLTAGE_GPU  700000
+#define MAX_VOLTAGE_GPU 1200000
+
+typedef struct mali_dvfs_tableTag{
+    unsigned int clock;
+    unsigned int freq;
+    unsigned int vol;
+}mali_dvfs_table;
+typedef struct mali_dvfs_thresholdTag{
+	unsigned int downthreshold;
+	unsigned int upthreshold;
+}mali_dvfs_threshold_table;
+extern mali_dvfs_table mali_dvfs[3];
+extern mali_dvfs_threshold_table mali_dvfs_threshold[3];
+
+unsigned int gv[3];
+
 static ssize_t gpu_voltage_show(struct device *dev, struct device_attribute *attr, char *buf) {
-	return sprintf(buf, "Step1: %d\nStep2: %d\n", gpu_voltage_control[0], gpu_voltage_control[1]);
+	return sprintf(buf, "Step1: %d\nStep2: %d\nStep3: %d\n", mali_dvfs[0].vol, mali_dvfs[1].vol,mali_dvfs[2].vol);
 }
 
 static ssize_t gpu_voltage_store(struct device *dev, struct device_attribute *attr, const char *buf,
 									size_t count) {
 	unsigned int ret = -EINVAL;
 	int i = 0;
-	ret = sscanf(buf, "%d %d", &gpu_voltage_control[0], &gpu_voltage_control[1]);
-	if (ret != 2) {
-		return -EINVAL;
+
+	ret = sscanf(buf, "%d %d %d", &gv[0], &gv[1], &gv[2]);
+	if(ret!=3)
+	{
+		ret = sscanf(buf, "%d %d", &gv[0], &gv[1]);
+		if(ret!=2) return -EINVAL;
 	}
-       else {
-                /* safety floor and ceiling - netarchy */
-                for( i = 0; i < 2; i++ ) {
-                        if (gpu_voltage_control[i] < 500000) {
-                                gpu_voltage_control[i] = 500000;
-                        }
-                        else if (gpu_voltage_control[i] > 1200000) {
-                                gpu_voltage_control[i] = 1200000;
-                        }
-                }
+
+    /* safety floor and ceiling - netarchy */
+    for( i = 0; i < 3; i++ ) {
+        if (gv[i] < MIN_VOLTAGE_GPU) {
+            gv[i] = MIN_VOLTAGE_GPU;
         }
+        else if (gv[i] > MAX_VOLTAGE_GPU) {
+            gv[i] = MAX_VOLTAGE_GPU;
+	}
+		if(ret==3 || i<2) mali_dvfs[i].vol=gv[i];
+    }
 	return count;
 }
 
@@ -74,4 +91,3 @@ void gpu_voltage_control_start()
 		pr_err("Unable to create group for %s\n", gpu_voltage_control_device.name);
 	}
 }
-

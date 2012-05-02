@@ -14,4 +14,3 @@
  */
 
 void gpu_voltage_control_start(void);
-
