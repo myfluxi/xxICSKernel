@@ -1,6 +1,6 @@
 #
 # Automatically generated make config: don't edit
-# Linux/arm 3.0.28 Kernel Configuration
+# Linux/arm 3.0.30 Kernel Configuration
 #
 CONFIG_ARM=y
 CONFIG_HAVE_PWM=y
@@ -1669,9 +1669,9 @@ CONFIG_BATTERY_SEC_U1=y
 # CONFIG_CHARGER_MAX8922_S2PLUS is not set
 CONFIG_BATTERY_MAX17042_FUELGAUGE_U1=y
 # CONFIG_BATTERY_MAX17042_FUELGAUGE_PX is not set
-CONFIG_SMB136_CHARGER=y
+# CONFIG_SMB136_CHARGER is not set
 CONFIG_SMB136_CHARGER_Q1=y
-# CONFIG_SMB328_CHARGER is not set
+CONFIG_SMB328_CHARGER=y
 # CONFIG_SMB347_CHARGER is not set
 # CONFIG_CHARGER_MANAGER is not set
 # CONFIG_HWMON is not set
