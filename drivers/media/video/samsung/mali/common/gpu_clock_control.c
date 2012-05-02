@@ -106,7 +106,7 @@ unsigned int g[4];
 static ssize_t gpu_staycount_store(struct device *dev, struct device_attribute *attr, const char *buf,
 									size_t count) {
 	unsigned int ret = -EINVAL;
-	int i = 0, i1, i2, i3;
+	int i1, i2, i3;
 
     if ( (ret=sscanf(buf, "%d %d %d", &i1, &i2, &i3))!=3 )
 		return -EINVAL;
