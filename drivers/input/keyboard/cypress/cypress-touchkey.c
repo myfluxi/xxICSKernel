@@ -76,6 +76,9 @@ touchkey register
 #define BREATHING_STEP_INRC	50
 #define BREATHING_STEP_INT	100
 #define BREATHING_MAX_VOLT	3300
+/* Blinking defaults */
+#define BLINKING_INTERVAL_ON	1000	/* 1 second on */
+#define BLINKING_INTERVAL_OFF	2000	/* 2 seconds off */
 
 #ifdef CONFIG_TARGET_CM_KERNEL
 #define DISABLE_BL	2
@@ -88,10 +91,16 @@ touchkey register
 int screen_on = 1;
 int notification_timeout = -1;  /* never time out */
 int led_brightness;
-int br_enabled = 0;
-int br_step_incr = BREATHING_STEP_INRC;
-int br_step_int = BREATHING_STEP_INT;
-int br_max_volt = BREATHING_MAX_VOLT;
+int breathing_enabled = 0;
+int breathing_step_incr = BREATHING_STEP_INRC;
+int breathing_step_int = BREATHING_STEP_INT;
+int breathing_max_volt = BREATHING_MAX_VOLT;
+int blinking_enabled = 0;
+int blinking_int_on = BLINKING_INTERVAL_ON;
+int blinking_int_off = BLINKING_INTERVAL_OFF;
+
+static void enable_touchkey_backlights(void);
+static void disable_touchkey_backlights(void);
 
 #ifdef CONFIG_TARGET_CM_KERNEL
 int led_on = 0;
@@ -526,26 +535,42 @@ static void handle_notification_timeout(unsigned long data)
 static void led_breathing(void)
 {
 	int vol_mv;
-	int min = 2500, max = br_max_volt;
+	int min = 2500, max = breathing_max_volt;
 
-	for (vol_mv = min; vol_mv <= max; vol_mv += br_step_incr) {
+	for (vol_mv = min; vol_mv <= max; vol_mv += breathing_step_incr) {
 		change_touch_key_led_voltage(vol_mv);
-		msleep(br_step_int);
+		msleep(breathing_step_int);
 	}
-	for (vol_mv = max; vol_mv >= min; vol_mv -= br_step_incr) {
+	for (vol_mv = max; vol_mv >= min; vol_mv -= breathing_step_incr) {
 		change_touch_key_led_voltage(vol_mv);
-		msleep(br_step_int);
+		msleep(breathing_step_int);
 	}
 	mod_timer(&breathing_timer, jiffies + msecs_to_jiffies(100));
 }
 
+static void led_blinking(void)
+{
+	enable_touchkey_backlights();
+	msleep(blinking_int_on);
+	disable_touchkey_backlights();
+
+	mod_timer(&breathing_timer, jiffies + msecs_to_jiffies(blinking_int_off));
+}
+
 static void breathing_off(struct work_struct *bl_off_work)
 {
-	if (screen_on == 0) {
-		led_breathing();
-	} else {
-	/* put default voltage back */
-	change_touch_key_led_voltage(led_brightness);
+	if (breathing_enabled == 1) {
+		if (screen_on == 0) {
+			led_breathing();
+		} else {
+		/* put default voltage back */
+		change_touch_key_led_voltage(led_brightness);
+		}
+
+	} else if (blinking_enabled == 1) {
+		if (screen_on == 0) {
+			led_blinking();
+		}
 	}
 
 	return;
@@ -601,9 +626,13 @@ static ssize_t led_status_write( struct device *dev, struct device_attribute *at
 				i2c_touchkey_write((u8 *)&status, 1);
 				led_on = 1;
 
-				if (br_enabled == 1) {
-					/* activate breathing */
+				if (breathing_enabled == 1) {
+					/* either activate breathing */
 					led_breathing();
+				} else if (blinking_enabled == 1) {
+					/* or activate breathing */
+					mod_timer(&breathing_timer, jiffies + msecs_to_jiffies(blinking_int_off));
+					led_blinking();
 				}
 
 				/* See if a timeout value has been set for the notification */
@@ -645,7 +674,7 @@ static ssize_t led_status_write( struct device *dev, struct device_attribute *at
 				}
 
 				/* disable the breathing timer */
-				if (br_enabled == 1) {
+				if (breathing_enabled == 1 || blinking_enabled == 1) {
 					del_timer(&breathing_timer);
 				}
 
@@ -678,7 +707,7 @@ static ssize_t led_timeout_write( struct device *dev, struct device_attribute *a
 
 static ssize_t enable_breathing_read( struct device *dev, struct device_attribute *attr, char *buf )
 {
-	return sprintf(buf,"%d\n", br_enabled);
+	return sprintf(buf,"%d\n", breathing_enabled);
 }
 
 static ssize_t enable_breathing_write( struct device *dev, struct device_attribute *attr, const char *buf, size_t size )
@@ -690,13 +719,15 @@ static ssize_t enable_breathing_write( struct device *dev, struct device_attribu
 	if (ret != 1 || data < 0 || data > 1)
 		return -EINVAL;
 
-	br_enabled = data;
+	breathing_enabled = data;
+	blinking_enabled = 0;
+
 	return size;
 }
 
 static ssize_t breathing_step_incr_read( struct device *dev, struct device_attribute *attr, char *buf )
 {
-	return sprintf(buf,"%d\n", br_step_incr);
+	return sprintf(buf,"%d\n", breathing_step_incr);
 }
 
 static ssize_t breathing_step_incr_write( struct device *dev, struct device_attribute *attr, const char *buf, size_t size )
@@ -708,13 +739,13 @@ static ssize_t breathing_step_incr_write( struct device *dev, struct device_attr
 	if (ret != 1 || data < 10 || data > 100)
 		return -EINVAL;
 
-	br_step_incr = data;
+	breathing_step_incr = data;
 	return size;
 }
 
 static ssize_t breathing_step_int_read( struct device *dev, struct device_attribute *attr, char *buf )
 {
-	return sprintf(buf,"%d\n", br_step_int);
+	return sprintf(buf,"%d\n", breathing_step_int);
 }
 
 static ssize_t breathing_step_int_write( struct device *dev, struct device_attribute *attr, const char *buf, size_t size )
@@ -726,13 +757,13 @@ static ssize_t breathing_step_int_write( struct device *dev, struct device_attri
 	if (ret != 1 || data < 10 || data > 100)
 		return -EINVAL;
 
-	br_step_int = data;
+	breathing_step_int = data;
 	return size;
 }
 
 static ssize_t breathing_max_volt_read( struct device *dev, struct device_attribute *attr, char *buf )
 {
-	return sprintf(buf,"%d\n", br_max_volt);
+	return sprintf(buf,"%d\n", breathing_max_volt);
 }
 
 static ssize_t breathing_max_volt_write( struct device *dev, struct device_attribute *attr, const char *buf, size_t size )
@@ -744,7 +775,63 @@ static ssize_t breathing_max_volt_write( struct device *dev, struct device_attri
 	if (ret != 1 || data < 2600 || data > 3300)
 		return -EINVAL;
 
-	br_max_volt = data;
+	breathing_max_volt = data;
+	return size;
+}
+
+static ssize_t enable_blinking_read( struct device *dev, struct device_attribute *attr, char *buf )
+{
+	return sprintf(buf,"%d\n", blinking_enabled);
+}
+
+static ssize_t enable_blinking_write( struct device *dev, struct device_attribute *attr, const char *buf, size_t size )
+{
+	unsigned int data;
+	int ret;
+
+	ret = sscanf(buf, "%d", &data);
+	if (ret != 1 || data < 0 || data > 1)
+		return -EINVAL;
+
+	blinking_enabled = data;
+	breathing_enabled = 0;
+
+	return size;
+}
+
+static ssize_t blinking_int_on_read( struct device *dev, struct device_attribute *attr, char *buf )
+{
+	return sprintf(buf,"%d\n", blinking_int_on);
+}
+
+static ssize_t blinking_int_on_write( struct device *dev, struct device_attribute *attr, const char *buf, size_t size )
+{
+	unsigned int data;
+	int ret;
+
+	ret = sscanf(buf, "%d", &data);
+	if (ret != 1 || data < 1 || data > 10)
+		return -EINVAL;
+
+	blinking_int_on = data;
+	return size;
+}
+
+static ssize_t blinking_int_off_read( struct device *dev, struct device_attribute *attr, char *buf )
+{
+	return sprintf(buf,"%d\n", blinking_int_off);
+}
+
+static ssize_t blinking_int_off_write( struct device *dev, struct device_attribute *attr, const char *buf, size_t size )
+{
+	unsigned int data;
+	int ret;
+
+	ret = sscanf(buf, "%d", &data);
+	if (ret != 1 || data < 1 || data > 10)
+		return -EINVAL;
+
+	blinking_int_off = data;
 	return size;
 }
 
@@ -819,6 +906,9 @@ static DEVICE_ATTR(breathing_enabled, S_IRUGO | S_IWUGO, enable_breathing_read, 
 static DEVICE_ATTR(breathing_step_increment, S_IRUGO | S_IWUGO, breathing_step_incr_read, breathing_step_incr_write );
 static DEVICE_ATTR(breathing_step_interval, S_IRUGO | S_IWUGO, breathing_step_int_read, breathing_step_int_write );
 static DEVICE_ATTR(breathing_max_volt, S_IRUGO | S_IWUGO, breathing_max_volt_read, breathing_max_volt_write );
+static DEVICE_ATTR(blinking_enabled, S_IRUGO | S_IWUGO, enable_blinking_read, enable_blinking_write );
+static DEVICE_ATTR(blinking_int_on, S_IRUGO | S_IWUGO, blinking_int_on_read, blinking_int_on_write );
+static DEVICE_ATTR(blinking_int_off, S_IRUGO | S_IWUGO, blinking_int_off_read, blinking_int_off_write );
 
 static struct attribute *bl_led_attributes[] = {
 #ifdef CONFIG_TARGET_CM_KERNEL
@@ -837,6 +927,9 @@ static struct attribute *bl_led_attributes[] = {
 	&dev_attr_breathing_step_increment.attr,
 	&dev_attr_breathing_step_interval.attr,
 	&dev_attr_breathing_max_volt.attr,
+	&dev_attr_blinking_enabled.attr,
+	&dev_attr_blinking_int_on.attr,
+	&dev_attr_blinking_int_off.attr,
 	NULL
 };
 
