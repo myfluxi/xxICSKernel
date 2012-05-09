@@ -3028,7 +3028,6 @@ static ssize_t touch_config_store(struct device *dev,
 				   struct device_attribute *attr,
 				   const char *buf, size_t size)
 {
-	struct mxt224_data *data = NULL;
 	int ret = 0;
 	unsigned int value[6];
 	bool ta_status = 0;
@@ -3048,8 +3047,8 @@ static ssize_t touch_config_store(struct device *dev,
 		copy_data->noisethr_charging = (u8) value[5];
 	}
 
-	if (data->read_ta_status) {
-		data->read_ta_status(&ta_status);
+	if (copy_data->read_ta_status) {
+		copy_data->read_ta_status(&ta_status);
 		mxt224_ta_probe(ta_status);
 	}
 
@@ -3058,15 +3057,10 @@ static ssize_t touch_config_store(struct device *dev,
 
 void tsp_touch_config_update(int status)
 {
-	u16 obj_address = 0;
-	u16 size_one;
-	int ret;
-	u8 value;
-	u8 val = 0;
-	unsigned int register_address;
 	u8 touch_threshold;
 	u8 mov_filter;
 	u8 noise_threshold;
+	bool ta_status = 0;
 
 	if (status > 0) {
 		touch_threshold = copy_data->tchthr_charging;
@@ -3078,46 +3072,10 @@ void tsp_touch_config_update(int status)
 		noise_threshold = copy_data->noisethr_batt;
 	}
 
-	/* touch threshold */
-	value = touch_threshold;
-	register_address = 7;
-	ret = get_object_info(copy_data, TOUCH_MULTITOUCHSCREEN_T9,
-				    &size_one, &obj_address);
-	size_one = 1;
-	write_mem(copy_data, obj_address + (u16) register_address,
-				size_one, &value);
-	read_mem(copy_data, obj_address + (u16) register_address,
-				(u8) size_one, &val);
-
-	printk(KERN_ERR "[TSP] TA_probe MXT224 T%d Byte%d is %d\n",
-		TOUCH_MULTITOUCHSCREEN_T9, register_address, val);
-
-	/* movement filter */
-	value = mov_filter;
-	register_address = 13;
-	write_mem(copy_data, obj_address + (u16) register_address,
-				size_one, &value);
-	read_mem(copy_data, obj_address + (u16) register_address,
-				(u8) size_one, &val);
-
-	printk(KERN_ERR "[TSP] TA_probe MXT224 T%d Byte%d is %d\n",
-		TOUCH_MULTITOUCHSCREEN_T9, register_address, val);
-
-	/* noise threshold */
-	value = noise_threshold;
-	register_address = 8;
-	ret = get_object_info(copy_data, PROCG_NOISESUPPRESSION_T22,
-				&size_one, &obj_address);
-	size_one = 1;
-	write_mem(copy_data, obj_address + (u16) register_address,
-				size_one, &value);
-
-	read_mem(copy_data, obj_address + (u16) register_address,
-				(u8) size_one, &val);
-
-	printk(KERN_ERR "[TSP] TA_probe MXT224 T%d Byte%d is %d\n",
-		PROCG_NOISESUPPRESSION_T22, register_address, val);
-
+	if (copy_data->read_ta_status) {
+		copy_data->read_ta_status(&ta_status);
+		mxt224_ta_probe(ta_status);
+	}
 }
 
 static ssize_t set_mxt_firm_version_show(struct device *dev,
