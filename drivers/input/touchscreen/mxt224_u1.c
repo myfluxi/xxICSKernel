@@ -3040,11 +3040,11 @@ static ssize_t touch_config_store(struct device *dev,
 		return -EINVAL;
 	} else {
 		copy_data->tchthr_batt = (u8) value[0];
-		copy_data->movfilter_batt = (u8) value[1];
-		copy_data->noisethr_batt = (u8) value[2];
+		copy_data->noisethr_batt = (u8) value[1];
+		copy_data->movfilter_batt = (u8) value[2];
 		copy_data->tchthr_charging = (u8) value[3];
-		copy_data->movfilter_charging = (u8) value[4];
-		copy_data->noisethr_charging = (u8) value[5];
+		copy_data->noisethr_charging = (u8) value[4];
+		copy_data->movfilter_charging = (u8) value[5];
 	}
 
 	if (copy_data->read_ta_status) {
