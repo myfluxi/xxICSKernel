@@ -80,7 +80,7 @@ touchkey register
 #define BREATHING_STEP_INT	100
 #define BREATHING_MIN_VOLT	2500
 #define BREATHING_MAX_VOLT	3300
-#define BREATHING_PAUSE		500
+#define BREATHING_PAUSE		700
 /* Blinking defaults */
 #define BLINKING_INTERVAL_ON	1000	/* 1 second on */
 #define BLINKING_INTERVAL_OFF	1000	/* 1 second off */
@@ -567,9 +567,9 @@ static void start_breathing_timer(void)
 	mod_timer(&breathing_timer, jiffies + msecs_to_jiffies(10));
 }
 
-static void breathing_timer_action(struct work_struct *bl_off_work)
+static void breathing_timer_action(struct work_struct *breathing_off_work)
 {
-	if (breathing_enabled) {
+	if (breathing_enabled && led_on) {
 		if (breathe_in) {
 			change_touch_key_led_voltage(breathe_volt);
 			breathe_volt += breathe.step_incr;
@@ -588,7 +588,7 @@ static void breathing_timer_action(struct work_struct *bl_off_work)
 				mod_timer(&breathing_timer, jiffies + msecs_to_jiffies(breathe.step_int));
 			}
 		}
-	} else if (blinking_enabled) {
+	} else if (blinking_enabled && led_on) {
 		if (blink_on) {
 			enable_touchkey_backlights();
 			mod_timer(&breathing_timer, jiffies + msecs_to_jiffies(blink.int_on));
