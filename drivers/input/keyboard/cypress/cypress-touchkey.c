@@ -41,6 +41,7 @@
 
 #include "issp_extern.h"
 #include <linux/i2c/mxt224_u1.h>
+#include <linux/power/sec_battery_u1.h>
 
 /*
 touchkey register
@@ -84,6 +85,8 @@ touchkey register
 /* Blinking defaults */
 #define BLINKING_INTERVAL_ON	1000	/* 1 second on */
 #define BLINKING_INTERVAL_OFF	1000	/* 1 second off */
+/* Polling defaults */
+#define BATT_LIMIT		20	/* 20 % capacity suggested */
 
 int screen_on = 1;
 bool bln_blinking_enabled = 0;
@@ -123,6 +126,10 @@ static struct blinking {
 	.int_off = BLINKING_INTERVAL_OFF,
 };
 
+extern unsigned int batt_status;
+unsigned int batt_limit = BATT_LIMIT;
+unsigned int polling_interval = 0;	/* disabled by default */
+
 static void enable_touchkey_backlights(void);
 static void disable_touchkey_backlights(void);
 
@@ -139,6 +146,9 @@ static DECLARE_WORK(notification_off_work, notification_off);
 static struct timer_list breathing_timer;
 static void breathing_timer_action(struct work_struct *breathing_off_work);
 static DECLARE_WORK(breathing_off_work, breathing_timer_action);
+static struct timer_list polling_timer;
+static void polling_timer_action(struct work_struct *polling_off_work);
+static DECLARE_WORK(polling_off_work, polling_timer_action);
 
 static int touchkey_keycode[3] = { 0, KEY_MENU, KEY_BACK };
 static const int touchkey_count = sizeof(touchkey_keycode) / sizeof(int);
@@ -609,6 +619,29 @@ static void handle_breathing_timeout(unsigned long data)
 	schedule_work(&breathing_off_work);
 }
 
+static void start_polling_timer(void)
+{
+	mod_timer(&polling_timer, jiffies + msecs_to_jiffies(10));
+}
+
+static void polling_timer_action(struct work_struct *polling_off_work)
+{
+	unsigned int status;
+
+	status = batt_status;
+	if (status <= batt_limit)
+		mod_timer(&notification_timer, jiffies + msecs_to_jiffies(10));
+	else
+		mod_timer(&polling_timer, jiffies + msecs_to_jiffies(polling_interval));
+
+	return;
+}
+
+static void handle_polling_timeout(unsigned long data)
+{
+	schedule_work(&polling_off_work);
+}
+
 static ssize_t led_status_read( struct device *dev, struct device_attribute *attr, char *buf )
 {
 	return sprintf(buf,"%u\n", led_on);
@@ -665,6 +698,12 @@ static ssize_t led_status_write( struct device *dev, struct device_attribute *at
 				if (notification_timeout > 0) {
 					/* restart the timer */
 					mod_timer(&notification_timer, jiffies + msecs_to_jiffies(notification_timeout));
+
+					/* If a polling interval has been set */
+					if (polling_interval > 0) {
+						/* start checking battery level */
+						start_polling_timer();
+					}
 				}
 			}
 			break;
@@ -853,6 +892,25 @@ static ssize_t led_fadeout_write( struct device *dev, struct device_attribute *a
 
 	return size;
 }
+static ssize_t check_battery_read( struct device *dev, struct device_attribute *attr, char *buf )
+{
+	return sprintf(buf,"%d%% %dms\n", batt_limit, polling_interval);
+}
+
+static ssize_t check_battery_write( struct device *dev, struct device_attribute *attr, const char *buf, size_t size )
+{
+	unsigned int data[2];
+	int ret;
+
+	ret = sscanf(buf, "%d %d", &data[0], &data[1]);
+	if (ret != 2)
+		return -EINVAL;
+
+	batt_limit = data[0];
+	polling_interval = data[1];
+
+	return size;
+}
 
 #ifdef CONFIG_TARGET_CM_KERNEL
 static DEVICE_ATTR(led, S_IRUGO | S_IWUGO, led_status_read, led_status_write );
@@ -915,6 +973,7 @@ static DEVICE_ATTR(breathing_config, S_IRUGO | S_IWUGO, breathing_config_read, b
 static DEVICE_ATTR(blinking_enabled, S_IRUGO | S_IWUGO, enable_blinking_read, enable_blinking_write );
 static DEVICE_ATTR(blinking_config, S_IRUGO | S_IWUGO, blinking_config_read, blinking_config_write );
 static DEVICE_ATTR(led_fadeout, S_IRUGO | S_IWUGO, led_fadeout_read, led_fadeout_write );
+static DEVICE_ATTR(check_battery, S_IRUGO | S_IWUGO, check_battery_read, check_battery_write );
 
 static struct attribute *bl_led_attributes[] = {
 #ifdef CONFIG_TARGET_CM_KERNEL
@@ -934,6 +993,7 @@ static struct attribute *bl_led_attributes[] = {
 	&dev_attr_blinking_enabled.attr,
 	&dev_attr_blinking_config.attr,
 	&dev_attr_led_fadeout.attr,
+	&dev_attr_check_battery.attr,
 	NULL
 };
 
@@ -1159,6 +1219,7 @@ static int i2c_touchkey_probe(struct i2c_client *client,
 	setup_timer(&led_timer, handle_led_timeout, 0);
 	setup_timer(&notification_timer, handle_notification_timeout, 0);
 	setup_timer(&breathing_timer, handle_breathing_timeout, 0);
+	setup_timer(&polling_timer, handle_polling_timeout, 0);
 
 	/* wake lock for LED Notify */
 	wake_lock_init(&led_wake_lock, WAKE_LOCK_SUSPEND, "led_wake_lock");
@@ -1575,6 +1636,7 @@ static void __exit touchkey_exit(void)
 	del_timer(&led_timer);
 	del_timer(&notification_timer);
 	del_timer(&breathing_timer);
+	del_timer(&polling_timer);
 
 	if (touchkey_wq)
 		destroy_workqueue(touchkey_wq);
