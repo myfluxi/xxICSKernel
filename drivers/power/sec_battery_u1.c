@@ -2043,6 +2043,7 @@ static bool sec_bat_check_ing_level_trigger(struct sec_bat_info *info)
 }
 
 unsigned int batt_status;
+unsigned int charging_status;
 
 static void sec_bat_monitor_work(struct work_struct *work)
 {
@@ -2051,6 +2052,9 @@ static void sec_bat_monitor_work(struct work_struct *work)
 
 	/* Broadcast battery level */
 	batt_status = info->batt_soc;
+
+	/* Broadcast charging status */
+	charging_status = info->charging_status;
 
 	sec_bat_check_temper(info);
 #ifndef SEC_BATTERY_INDEPEDENT_VF_CHECK
