@@ -130,7 +130,9 @@ extern unsigned int batt_status;
 extern unsigned int charging_status;
 unsigned int batt_limit = BATT_LIMIT;
 unsigned int polling_interval = 0;	/* disabled by default */
+unsigned int notification_count = 0;
 bool notification_persistent = false;
+bool notification_renew = true;
 
 static void enable_touchkey_backlights(void);
 static void disable_touchkey_backlights(void);
@@ -559,6 +561,7 @@ static void notification_off(struct work_struct *notification_off_work)
 	i2c_touchkey_write((u8 *)&status, 1);
 	touchkey_enable = 0;
 	led_on = 0;
+	notification_count = 0;
 
 	/* we were using a wakelock, unlock it */
 	if (wake_lock_active(&led_wake_lock)) {
@@ -699,10 +702,14 @@ static ssize_t led_status_write( struct device *dev, struct device_attribute *at
 				/* See if a timeout value has been set for the notification */
 				if (notification_timeout > 0) {
 					/* restart the timer */
-					if (notification_persistent && (charging_status == 1 || charging_status == 4))
+					notification_count++;
+					if (notification_persistent && (charging_status == 1 || charging_status == 4)) {
 						mod_timer(&notification_timer, jiffies + msecs_to_jiffies(-1));
-					else
-						mod_timer(&notification_timer, jiffies + msecs_to_jiffies(notification_timeout));
+					} else {
+						if (notification_renew || notification_count < 2) {
+							mod_timer(&notification_timer, jiffies + msecs_to_jiffies(notification_timeout));
+						}
+					}
 
 					/* If a polling interval has been set */
 					if (polling_interval > 0) {
@@ -870,16 +877,19 @@ static ssize_t blinking_config_write( struct device *dev, struct device_attribut
 
 static ssize_t notification_timeout_read( struct device *dev, struct device_attribute *attr, char *buf )
 {
-	return sprintf(buf,"%d %d\n", notification_timeout, (notification_persistent ? 1 : 0));
+	return sprintf(buf,"%d %d %d\n",
+			notification_timeout,
+			(notification_persistent ? 1 : 0),
+			(notification_renew ? 1 : 0));
 }
 
 static ssize_t notification_timeout_write( struct device *dev, struct device_attribute *attr, const char *buf, size_t size )
 {
-	unsigned int data[2];
+	unsigned int data[3];
 	int ret;
 
-	ret = sscanf(buf, "%d %d", &data[0], &data[1]);
-	if (ret < 0 || ret > 2)
+	ret = sscanf(buf, "%d %d %d\n", &data[0], &data[1], &data[2]);
+	if (ret < 0 || ret > 3)
 		return -EINVAL;
 
 	notification_timeout = data[0];
@@ -887,8 +897,10 @@ static ssize_t notification_timeout_write( struct device *dev, struct device_att
 	if (data[1] == 0 || data[1] == 1 )
 		notification_persistent = (data[1] ? true : false);
 
-	return size;
+	if (data[2] == 0 || data[2] == 1 )
+		notification_renew = (data[2] ? true : false);
 
+	return size;
 }
 
 static ssize_t led_fadeout_read( struct device *dev, struct device_attribute *attr, char *buf )
@@ -1104,7 +1116,7 @@ static int sec_touchkey_late_resume(struct early_suspend *h)
 	/* see if late_resume is running before DISABLE_BL */
 	if (led_on) {
 		/* if a notification timeout was set, disable the timer */
-		if (notification_timeout > 0) {
+		if (notification_timeout > 0 && notification_renew) {
 			del_timer(&notification_timer);
 		}
 
