@@ -3213,6 +3213,7 @@ unsigned long nr_running(void)
 
 	return sum;
 }
+EXPORT_SYMBOL_GPL(nr_running);
 
 unsigned long nr_uninterruptible(void)
 {
