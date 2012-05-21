@@ -81,5 +81,6 @@ struct sec_bat_platform_data {
 };
 
 extern void tsp_touch_config_update(int status);
+extern void enable_bln_charging(int status);
 
 #endif /* __MACH_SEC_BATTERY_H */
