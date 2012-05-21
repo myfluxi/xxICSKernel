@@ -91,6 +91,8 @@ touchkey register
 int screen_on = 1;
 bool bln_blinking_enabled = 0;
 int notification_enabled = -1;		/* disabled by default */
+int prev_notification_enabled;
+bool notification_enabled_charging = false;
 int notification_timeout = -1;  	/* never time out */
 int led_on = 0;
 int led_timeout = BL_STANDARD;		/* leds on for 3 secs standard */
@@ -498,6 +500,18 @@ static irqreturn_t touchkey_interrupt(int irq, void *dummy)
 /*
  * Start of the main LED Notify code block
  */
+void enable_bln_charging(int status)
+{
+	if (notification_enabled_charging) {
+		if (status > 0) {
+			prev_notification_enabled = notification_enabled;
+			notification_enabled = 1;
+		} else {
+			notification_enabled = prev_notification_enabled;
+		}
+	}
+}
+
 static void reset_breathing(void)
 {
 	breathe_in = true;
@@ -660,6 +674,33 @@ static ssize_t notification_enabled_read( struct device *dev, struct device_attr
 static ssize_t notification_enabled_write( struct device *dev, struct device_attribute *attr, const char *buf, size_t size )
 {
 	sscanf(buf,"%d\n", &notification_enabled);
+	return size;
+}
+
+static ssize_t notification_enabled_charging_read( struct device *dev, struct device_attribute *attr,
+										char *buf )
+{
+	return sprintf(buf,"%d\n", (notification_enabled_charging ? 1 : 0));
+}
+
+static ssize_t notification_enabled_charging_write( struct device *dev, struct device_attribute *attr,
+								const char *buf, size_t size )
+{
+	unsigned int data;
+	int ret;
+
+	ret = sscanf(buf, "%d\n", &data);
+	if (ret < 0 || ret > 1)
+		return -EINVAL;
+
+	notification_enabled_charging = (data ? true : false);
+
+	/* Enable BLN if currently charging */
+	if (notification_enabled_charging && (charging_status == 1 || charging_status == 4)) {
+		prev_notification_enabled = notification_enabled;
+		notification_enabled = 1;
+	}
+
 	return size;
 }
 
@@ -996,6 +1037,7 @@ static DEVICE_ATTR(notification_led, S_IRUGO | S_IWUGO, led_status_read, led_sta
 static DEVICE_ATTR(led_timeout, S_IRUGO | S_IWUGO, led_timeout_read, led_timeout_write );
 static DEVICE_ATTR(version, S_IRUGO | S_IWUGO, version_read, NULL );
 #endif
+static DEVICE_ATTR(enabled_charging, S_IRUGO | S_IWUGO, notification_enabled_charging_read, notification_enabled_charging_write );
 static DEVICE_ATTR(notification_timeout, S_IRUGO | S_IWUGO, notification_timeout_read, notification_timeout_write );
 static DEVICE_ATTR(breathing_enabled, S_IRUGO | S_IWUGO, enable_breathing_read, enable_breathing_write );
 static DEVICE_ATTR(breathing_config, S_IRUGO | S_IWUGO, breathing_config_read, breathing_config_write );
@@ -1016,6 +1058,7 @@ static struct attribute *bl_led_attributes[] = {
 	&dev_attr_led_timeout.attr,
         &dev_attr_version.attr,
 #endif
+	&dev_attr_enabled_charging.attr,
 	&dev_attr_notification_timeout.attr,
 	&dev_attr_breathing_enabled.attr,
 	&dev_attr_breathing_config.attr,

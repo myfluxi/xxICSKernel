@@ -625,6 +625,8 @@ static int sec_bat_set_property(struct power_supply *ps,
 		/* cable is attached or detached. called by USB switch(MUIC) */
 		dev_info(info->dev, "%s: cable was changed(%d)\n", __func__,
 			 val->intval);
+		/* trigger cypress bln */
+		enable_bln_charging(val->intval);
 		switch (val->intval) {
 		case POWER_SUPPLY_TYPE_BATTERY:
 			info->cable_type = CABLE_TYPE_NONE;
