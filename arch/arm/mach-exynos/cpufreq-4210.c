@@ -406,6 +406,7 @@ static void __init set_volt_table(unsigned int asv_group)
 
 	printk(KERN_INFO "DVFS : VDD_ARM Voltage table set with %d Group\n", asv_group);
 
+	max_support_idx = 0;
 	for (i = 0 ; i < CPUFREQ_LEVEL_END ; i++) {
 			exynos4210_volt_table[i] =
 				asv_voltage_A[i][asv_group];
