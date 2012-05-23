@@ -93,6 +93,7 @@
 
 #ifdef CONFIG_S3C64XX_DEV_SPI
 #include <plat/s3c64xx-spi.h>
+#include <mach/spi-clocks.h>
 #endif
 
 #include <mach/map.h>
@@ -113,10 +114,6 @@
 
 #if defined(CONFIG_VIDEO_SAMSUNG_S5P_MFC) || defined(CONFIG_VIDEO_MFC5X)
 #include <plat/s5p-mfc.h>
-#endif
-
-#ifdef CONFIG_S3C64XX_DEV_SPI
-#include <mach/spi-clocks.h>
 #endif
 
 #ifdef CONFIG_VIDEO_M5MO
@@ -2738,7 +2735,7 @@ REGULATOR_INIT(ldo13, "CAM_ANALOG_2.8V", 2800000, 2800000, 0,
 #if defined(CONFIG_MACH_P2)
 REGULATOR_INIT(ldo14, "VCC_3.0V_MOTOR", 2400000, 2400000, 0,
 		REGULATOR_CHANGE_STATUS, 1);
-#elif defined(CONFIG_MACH_P8)
+#elif defined(CONFIG_MACH_P8) || defined(CONFIG_MACH_P8LTE)
 REGULATOR_INIT(ldo14, "VCC_3.0V_MOTOR", 3100000, 3100000, 0,
 		REGULATOR_CHANGE_STATUS, 1);
 #else
@@ -2930,7 +2927,11 @@ static struct max8997_power_data max8997_power = {
 
 #ifdef CONFIG_VIBETONZ
 static struct max8997_motor_data max8997_motor = {
+#if defined(CONFIG_MACH_P8) || defined(CONFIG_MACH_P8LTE)
+	.reg2 = MOTOR_LRA | EXT_PWM | DIVIDER_256,
+#else
 	.reg2 = MOTOR_LRA | EXT_PWM | DIVIDER_128,
+#endif
 	.max_timeout = 10000,
 #if defined(CONFIG_MACH_P4)
 	.duty = 37000,
@@ -2938,6 +2939,9 @@ static struct max8997_motor_data max8997_motor = {
 #elif defined(CONFIG_MACH_P2)
 	.duty = 44707,
 	.period = 45159,
+#elif defined(CONFIG_MACH_P8) || defined(CONFIG_MACH_P8LTE)
+	.duty = 38288,
+	.period = 38676,
 #else
 	.duty = 37641,
 	.period = 38022,
@@ -3027,7 +3031,7 @@ static struct mpu3050_platform_data mpu3050_pdata = {
 	.level_shifter = 0,
 	.accel = {
 		.get_slave_descr = kxtf9_get_slave_descr,
-		.irq		= 0,	//not used
+		.irq		= 0,	/* not used */
 		.adapt_num	= 1,
 		.bus		= EXT_SLAVE_BUS_SECONDARY,
 		.address	= 0x0F,
@@ -3086,7 +3090,7 @@ static void mpu3050_init(void)
 {
 	gpio_request(GPIO_GYRO_INT, "mpu3050_int");
 	gpio_direction_input(GPIO_GYRO_INT);
-	//mpu3050_pdata.sec_class = sec_class;
+	/* mpu3050_pdata.sec_class = sec_class; */
 }
 
 static const struct i2c_board_info i2c_mpu_sensor_board_info[] = {
@@ -3101,7 +3105,7 @@ static const struct i2c_board_info i2c_mpu_sensor_board_info[] = {
 	},
 #endif
 };
-#endif   //CONFIG_MPU_SENSORS_MPU3050
+#endif   /* CONFIG_MPU_SENSORS_MPU3050 */
 
 static int check_bootmode(void)
 {
@@ -4642,9 +4646,9 @@ static struct i2c_board_info i2c_devs1[] __initdata = {
 	},
 };
 
-#endif //!CONFIG_MPU_SENSORS_MPU3050
+#endif /* !CONFIG_MPU_SENSORS_MPU3050 */
 
-#endif //CONFIG_S3C_DEV_I2C1
+#endif /* CONFIG_S3C_DEV_I2C1 */
 
 #ifdef CONFIG_S3C_DEV_I2C2
 /* I2C2 */
@@ -5098,7 +5102,7 @@ static int  bh1721fvc_light_sensor_output(int value)
 
 static struct bh1721fvc_platform_data bh1721fvc_pdata = {
 	.reset = bh1721fvc_light_sensor_reset,
-	//.output = bh1721fvc_light_sensor_output,
+	/* .output = bh1721fvc_light_sensor_output, */
 };
 
 static struct i2c_board_info i2c_bh1721_emul[] __initdata = {
