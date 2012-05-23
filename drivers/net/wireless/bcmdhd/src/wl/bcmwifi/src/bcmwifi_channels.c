@@ -40,21 +40,18 @@
 #ifndef ASSERT
 #define ASSERT(exp)
 #endif
-#endif
+#endif /* BCMDRIVER */
+#ifdef _bcmwifi_c_
 #include <bcmwifi.h>
+#else
+#include <bcmwifi_channels.h>
+#endif
 
 #if defined(WIN32) && (defined(BCMDLL) || defined(WLMDLL))
 #include <bcmstdlib.h>
 #endif
 
 #ifndef D11AC_IOTYPES
-
-
-
-
-
-
-
 char *
 wf_chspec_ntoa(chanspec_t chspec, char *buf)
 {
@@ -223,11 +220,6 @@ wf_chspec_ctlchspec(chanspec_t chspec)
 
 #else
 
-
-
-
-
-
 static const char *wf_chspec_bw_str[] =
 {
 	"5",
@@ -263,8 +255,6 @@ static const uint8 wf_5g_160m_chans[] =
 {50, 114};
 #define WF_NUM_5G_160M_CHANS \
 	(sizeof(wf_5g_160m_chans)/sizeof(uint8))
-
-
 
 static uint
 bw_chspec_to_mhz(chanspec_t chspec)
@@ -495,10 +485,7 @@ wf_chspec_aton(const char *a)
 		return 0;
 	}
 
-
-
 	c = tolower(a[0]);
-
 
 	if (chspec_band == WL_CHANSPEC_BAND_2G && bw == 40) {
 		if (c == 'u' || c == 'l') {
@@ -508,9 +495,7 @@ wf_chspec_aton(const char *a)
 		}
 	}
 
-
 	if (c == '+') {
-
 		static const char *plus80 = "80/";
 
 
@@ -525,15 +510,12 @@ wf_chspec_aton(const char *a)
 			}
 		}
 
-
 		if (!read_uint(&a, &ch1))
 			return 0;
-
 
 		if (a[0] != '-')
 			return 0;
 		a ++;
-
 
 		if (!read_uint(&a, &ch2))
 			return 0;
@@ -545,12 +527,8 @@ done_read:
 		a ++;
 	}
 
-
 	if (a[0] != '\0')
 		return 0;
-
-
-
 
 	if (sb_ul != '\0') {
 		if (sb_ul == 'l') {
@@ -612,12 +590,8 @@ done_read:
 		if (ch1 >= ch2 || ch1_id < 0 || ch2_id < 0)
 			return 0;
 
-
 		chspec_ch = (((uint16)ch1_id << WL_CHANSPEC_CHAN1_SHIFT) |
 			((uint16)ch2_id << WL_CHANSPEC_CHAN2_SHIFT));
-
-
-
 
 		sb = channel_to_sb(ch1, ctl_ch, bw);
 		if (sb < 0) {
@@ -770,7 +744,6 @@ wf_chspec_valid(chanspec_t chanspec)
 			}
 
 			if (i < num_ch) {
-
 				return TRUE;
 			}
 		}
@@ -836,8 +809,41 @@ wf_chspec_ctlchspec(chanspec_t chspec)
 	return ctl_chspec;
 }
 
-#endif
+#endif /* D11AC_IOTYPES */
 
+#ifdef D11AC_IOTYPES
+extern chanspec_t wf_chspec_primary40_chspec(chanspec_t chspec)
+{
+	chanspec_t chspec40 = chspec;
+	uint center_chan;
+	uint sb;
+
+	ASSERT(!wf_chspec_malformed(chspec));
+
+	if (CHSPEC_IS80(chspec)) {
+		center_chan = CHSPEC_CHANNEL(chspec);
+		sb = CHSPEC_CTL_SB(chspec);
+
+		if (sb == WL_CHANSPEC_CTL_SB_UL) {
+
+			sb = WL_CHANSPEC_CTL_SB_L;
+			center_chan += CH_20MHZ_APART;
+		} else if (sb == WL_CHANSPEC_CTL_SB_UU) {
+
+			sb = WL_CHANSPEC_CTL_SB_U;
+			center_chan += CH_20MHZ_APART;
+		} else {
+			center_chan -= CH_20MHZ_APART;
+		}
+
+
+		chspec40 = (WL_CHANSPEC_BAND_5G | WL_CHANSPEC_BW_40 |
+		            sb | center_chan);
+	}
+
+	return chspec40;
+}
+#endif /* D11AC_IOTYPES */
 
 int
 wf_mhz2channel(uint freq, uint start_factor)

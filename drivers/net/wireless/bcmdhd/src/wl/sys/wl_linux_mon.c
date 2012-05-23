@@ -59,8 +59,15 @@ int dhd_monitor_uninit(void);
 #ifndef DHD_MAX_IFS
 #define DHD_MAX_IFS 16
 #endif
-#define MON_PRINT(format, ...) printk("DHD-MON: %s " format, __func__, ##__VA_ARGS__)
-#define MON_TRACE MON_PRINT
+
+#define MON_DEBUG 0
+#if MON_DEBUG
+	#define MON_PRINT(format, ...) printk("DHD-MON: %s " format, __func__, ##__VA_ARGS__)
+	#define MON_TRACE MON_PRINT
+#else
+	#define MON_PRINT(format, ...)
+	#define MON_TRACE MON_PRINT
+#endif
 
 typedef struct monitor_interface {
 	int radiotap_enabled;
@@ -227,6 +234,7 @@ static int dhd_mon_if_subif_start_xmit(struct sk_buff *skb, struct net_device *n
 		pdata = (unsigned char*)skb->data;
 		memcpy(pdata, dst_mac_addr, sizeof(dst_mac_addr));
 		memcpy(pdata + sizeof(dst_mac_addr), src_mac_addr, sizeof(src_mac_addr));
+		PKTSETPRIO(skb, 0);
 
 		MON_PRINT("if name: %s, matched if name %s\n", ndev->name, mon_if->real_ndev->name);
 
