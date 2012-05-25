@@ -441,7 +441,7 @@ wlan_setup_power(int on, int detect)
 			udelay(10);
 		}
 		gpio_direction_output(GPIO_WLAN_nRST, 0);
-		mdelay(30);
+		msleep(30);
 		gpio_direction_output(GPIO_WLAN_nRST, 1);
 
 #ifdef WLAN_HOST_WAKE
@@ -458,7 +458,7 @@ wlan_setup_power(int on, int detect)
 			gpio_direction_output(GPIO_WLAN_EN2, 0);
 	}
 
-	mdelay(100);
+	msleep(100);
 
 	printk(KERN_ERR "ATHR - rev : %02d\n", system_rev);
 
@@ -1702,7 +1702,7 @@ static int sr200pc20_power_off(void)
 	udelay(100);
 #endif
 	/* Sleep command */
-	mdelay(1);
+	msleep(1);
 
 	/* 2M_nRST Low*/
 	ret = gpio_direction_output(GPIO_2M_nRST, 0);
@@ -1718,7 +1718,7 @@ static int sr200pc20_power_off(void)
 	/* ENB High*/
 	ret = gpio_direction_output(GPIO_2M_nSTBY, 1);
 	CAM_CHECK_ERR_RET(ret, "2M_nSTBY");
-	mdelay(5);
+	msleep(5);
 
 	/* ENB Low */
 	ret = gpio_direction_output(GPIO_2M_nSTBY, 0);
@@ -2211,10 +2211,10 @@ static int reset_lcd(struct lcd_device *ld)
 	}
 
 	gpio_direction_output(EXYNOS4_GPX0(6), 1);
-	mdelay(100);
+	msleep(100);
 
 	gpio_set_value(EXYNOS4_GPX0(6), 1);
-	mdelay(100);
+	msleep(100);
 
 	gpio_free(EXYNOS4_GPX0(6));
 
@@ -2397,13 +2397,13 @@ static void lcd_lte480wv_set_power(struct plat_lcd_data *pd, unsigned int power)
 		gpio_request(EXYNOS4_GPX0(6), "GPX0");
 
 		gpio_direction_output(EXYNOS4_GPX0(6), 1);
-		mdelay(100);
+		msleep(100);
 
 		gpio_set_value(EXYNOS4_GPX0(6), 0);
-		mdelay(10);
+		msleep(10);
 
 		gpio_set_value(EXYNOS4_GPX0(6), 1);
-		mdelay(10);
+		msleep(10);
 
 		gpio_free(EXYNOS4_GPX0(6));
 	} else {
@@ -3136,6 +3136,8 @@ static struct platform_device csr8811_bluetooth_device = {
 
 #ifdef CONFIG_SND_SOC_U1_MC1N2
 static DEFINE_SPINLOCK(mic_bias_lock);
+
+#ifndef CONFIG_MACH_P8
 static bool mc1n2_mainmic_bias;
 static bool mc1n2_submic_bias;
 
@@ -3148,22 +3150,23 @@ static void set_shared_mic_bias(void)
 		gpio_set_value(GPIO_EAR_MIC_BIAS_EN, mc1n2_mainmic_bias
 			       || mc1n2_submic_bias);
 }
+#endif
 
 void sec_set_sub_mic_bias(bool on)
 {
-#ifdef CONFIG_MACH_PX
+#ifdef CONFIG_MACH_P4
 	return;
 #else
 #ifdef CONFIG_SND_SOC_USE_EXTERNAL_MIC_BIAS
-	if (system_rev < SYSTEM_REV_SND) {
-		unsigned long flags;
-		spin_lock_irqsave(&mic_bias_lock, flags);
-		mc1n2_submic_bias = on;
-		set_shared_mic_bias();
-		spin_unlock_irqrestore(&mic_bias_lock, flags);
-	} else
-		gpio_set_value(GPIO_SUB_MIC_BIAS_EN, on);
-
+#ifdef CONFIG_MACH_P8
+	gpio_set_value(GPIO_SUB_MIC_BIAS_EN, on);
+#else
+	unsigned long flags;
+	spin_lock_irqsave(&mic_bias_lock, flags);
+	mc1n2_submic_bias = on;
+	set_shared_mic_bias();
+	spin_unlock_irqrestore(&mic_bias_lock, flags);
+#endif
 #endif
 #endif
 }
@@ -3171,14 +3174,15 @@ void sec_set_sub_mic_bias(bool on)
 void sec_set_main_mic_bias(bool on)
 {
 #ifdef CONFIG_SND_SOC_USE_EXTERNAL_MIC_BIAS
-	if (system_rev < SYSTEM_REV_SND) {
-		unsigned long flags;
-		spin_lock_irqsave(&mic_bias_lock, flags);
-		mc1n2_mainmic_bias = on;
-		set_shared_mic_bias();
-		spin_unlock_irqrestore(&mic_bias_lock, flags);
-	} else
-		gpio_set_value(GPIO_MIC_BIAS_EN, on);
+#ifdef CONFIG_MACH_P8
+	gpio_set_value(GPIO_MAIN_MIC_BIAS_EN, on);
+#else
+	unsigned long flags;
+	spin_lock_irqsave(&mic_bias_lock, flags);
+	mc1n2_mainmic_bias = on;
+	set_shared_mic_bias();
+	spin_unlock_irqrestore(&mic_bias_lock, flags);
+#endif
 #endif
 }
 
@@ -3201,7 +3205,27 @@ static void u1_sound_init(void)
 {
 #ifdef CONFIG_SND_SOC_USE_EXTERNAL_MIC_BIAS
 	int err;
+#ifdef CONFIG_MACH_P8
+	err = gpio_request(GPIO_MAIN_MIC_BIAS_EN, "GPC0");
+	if (err) {
+		pr_err(KERN_ERR "MAIN_MIC_BIAS_EN GPIO set error!\n");
+		return;
+	}
 
+	gpio_direction_output(GPIO_MAIN_MIC_BIAS_EN, 1);
+	gpio_set_value(GPIO_MAIN_MIC_BIAS_EN, 0);
+	gpio_free(GPIO_MAIN_MIC_BIAS_EN);
+
+	err = gpio_request(GPIO_SUB_MIC_BIAS_EN, "GPE1");
+	if (err) {
+		pr_err(KERN_ERR "GPIO_SUB_MIC_BIAS_EN GPIO set error!\n");
+		return;
+	}
+	gpio_direction_output(GPIO_SUB_MIC_BIAS_EN, 1);
+	gpio_set_value(GPIO_SUB_MIC_BIAS_EN, 0);
+	gpio_free(GPIO_SUB_MIC_BIAS_EN);
+
+#else
 	err = gpio_request(GPIO_MIC_BIAS_EN, "GPE1");
 	if (err) {
 		pr_err(KERN_ERR "MIC_BIAS_EN GPIO set error!\n");
@@ -3210,7 +3234,7 @@ static void u1_sound_init(void)
 	gpio_direction_output(GPIO_MIC_BIAS_EN, 1);
 	gpio_set_value(GPIO_MIC_BIAS_EN, 0);
 	gpio_free(GPIO_MIC_BIAS_EN);
-
+#endif
 	err = gpio_request(GPIO_EAR_MIC_BIAS_EN, "GPE2");
 	if (err) {
 		pr_err(KERN_ERR "EAR_MIC_BIAS_EN GPIO set error!\n");
@@ -3343,10 +3367,14 @@ struct platform_device u1_keypad = {
 #ifdef CONFIG_SEC_DEV_JACK
 static void sec_set_jack_micbias(bool on)
 {
+#ifdef CONFIG_MACH_P8
+	gpio_set_value(GPIO_EAR_MIC_BIAS_EN, on);
+#else
 	if (system_rev >= 3)
 		gpio_set_value(GPIO_EAR_MIC_BIAS_EN, on);
 	else
 		gpio_set_value(GPIO_MIC_BIAS_EN, on);
+#endif
 }
 
 static struct sec_jack_zone sec_jack_zones[] = {
@@ -3458,7 +3486,7 @@ static void ts_power_on(void)
 	s3c_gpio_setpull(GPIO_TSP_RST, S3C_GPIO_PULL_NONE);
 */
 	gpio_set_value(GPIO_TSP_RST, GPIO_LEVEL_HIGH);
-	mdelay(70);
+	msleep(70);
 	s3c_gpio_setpull(GPIO_TSP_INT, S3C_GPIO_PULL_NONE);
 	s3c_gpio_cfgpin(GPIO_TSP_INT, S3C_GPIO_SFN(0xf));
 	pr_info("[TSP] TSP POWER ON\n");
@@ -3522,10 +3550,10 @@ static void mxt224_power_on(void)
 	s3c_gpio_cfgpin(GPIO_TSP_LDO_ON, S3C_GPIO_OUTPUT);
 	s3c_gpio_setpull(GPIO_TSP_LDO_ON, S3C_GPIO_PULL_NONE);
 	gpio_set_value(GPIO_TSP_LDO_ON, 1);
-	mdelay(70);
+	msleep(70);
 	s3c_gpio_setpull(GPIO_TSP_INT, S3C_GPIO_PULL_NONE);
 	s3c_gpio_cfgpin(GPIO_TSP_INT, S3C_GPIO_SFN(0xf));
-	mdelay(40);
+	msleep(40);
 	/* printk("mxt224_power_on is finished\n"); */
 }
 
@@ -4170,10 +4198,10 @@ static void ts_power_on(void)
 	s3c_gpio_cfgpin(GPIO_TSP_LDO_ON, S3C_GPIO_OUTPUT);
 	s3c_gpio_setpull(GPIO_TSP_LDO_ON, S3C_GPIO_PULL_NONE);
 	gpio_set_value(GPIO_TSP_LDO_ON, GPIO_LEVEL_HIGH);
-	mdelay(70);
+	msleep(70);
 	s3c_gpio_setpull(GPIO_TSP_INT_18V, S3C_GPIO_PULL_NONE);
 	s3c_gpio_cfgpin(GPIO_TSP_INT_18V, S3C_GPIO_SFN(0xf));
-	mdelay(40);
+	msleep(40);
 	printk(KERN_DEBUG"mxt_power_on is finished\n");
 
 }
@@ -4430,10 +4458,10 @@ static void mxt1386_power_on(void)
 	s3c_gpio_cfgpin(GPIO_TSP_RST, S3C_GPIO_OUTPUT);
 	s3c_gpio_setpull(GPIO_TSP_RST, S3C_GPIO_PULL_NONE);
 	gpio_set_value(GPIO_TSP_RST, 1);
-	mdelay(70);
+	msleep(70);
 	s3c_gpio_setpull(GPIO_TSP_INT, S3C_GPIO_PULL_NONE);
 	s3c_gpio_cfgpin(GPIO_TSP_INT, S3C_GPIO_SFN(0xf));
-	mdelay(40);
+	msleep(40);
 	printk(KERN_ERR "[TSP]mxt1386_power_on is finished\n");
 }
 
@@ -5331,7 +5359,7 @@ static int lcd_power_on(struct lcd_device *ld, int enable)
 {
 	if (enable) {
 		gpio_set_value(GPIO_LCD_EN, GPIO_LEVEL_HIGH);
-		mdelay(10);
+		msleep(10);
 		gpio_set_value(GPIO_LCD_LDO_EN, GPIO_LEVEL_HIGH);
 		msleep(30);
 		/* LVDS_N_SHDN to high*/
@@ -5393,7 +5421,7 @@ static int lcd_power_on(struct lcd_device *ld, int enable)
 		msleep(300);
 
 		gpio_set_value(GPIO_LED_BACKLIGHT_RESET, GPIO_LEVEL_HIGH);
-		mdelay(2);
+		msleep(2);
 
 	} else {
 		gpio_set_value(GPIO_LED_BACKLIGHT_RESET, GPIO_LEVEL_LOW);
@@ -5665,7 +5693,7 @@ static int lcd_power_on(void *pdev, int enable)
 		gpio_set_value(GPIO_LCD_RST, GPIO_LEVEL_LOW);
 		gpio_set_value(GPIO_LCD_LDO_EN, GPIO_LEVEL_LOW);
 		gpio_set_value(GPIO_LCD_EN, GPIO_LEVEL_LOW);
-		mdelay(10);
+		msleep(10);
 	}
 
 	gpio_free(GPIO_LCD_LDO_EN);
