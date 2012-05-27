@@ -266,14 +266,17 @@ static unsigned int decideNextStatus(unsigned int utilization)
 }
 
 #ifdef EXYNOS4_ASV_ENABLED
+unsigned int mali_asv_group;
+
 static mali_bool mali_dvfs_table_update(void)
 {
 	unsigned int exynos_result_of_asv_group;
 	unsigned int target_asv;
 	unsigned int i;
-	exynos_result_of_asv_group = exynos_result_of_asv & 0xf;
+	exynos_result_of_asv_group = mali_asv_group = exynos_result_of_asv & 0xf;
 	target_asv = exynos_result_of_asv >> 28;
-	MALI_PRINT(("exynos_result_of_asv_group = 0x%x, target_asv = 0x%x\n", exynos_result_of_asv_group, target_asv));
+	MALI_PRINT(("exynos_result_of_asv_group = 0x%x, target_asv = 0x%x\n",
+					exynos_result_of_asv_group, target_asv));
 
 	if (target_asv == 0x8) { //SUPPORT_1400MHZ
 		for (i = 0; i < MALI_DVFS_STEPS; i++) {
@@ -289,6 +292,17 @@ static mali_bool mali_dvfs_table_update(void)
 
 	return MALI_TRUE;
 
+}
+
+void update_mali_dvfs_table(unsigned int asv_group)
+{
+	unsigned int i;
+
+	mali_asv_group = asv_group & 0xf;
+	for (i = 0; i < MALI_DVFS_STEPS; i++) {
+		mali_dvfs[i].vol = asv_3d_volt_8_table[asv_group][i];
+		MALI_PRINT(("mali_dvfs[%d].vol = %d\n", i, mali_dvfs[i].vol));
+	}
 }
 #endif
 

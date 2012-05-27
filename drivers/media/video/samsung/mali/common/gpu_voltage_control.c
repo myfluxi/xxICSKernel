@@ -32,6 +32,7 @@ typedef struct mali_dvfs_thresholdTag{
 }mali_dvfs_threshold_table;
 extern mali_dvfs_table mali_dvfs[3];
 extern mali_dvfs_threshold_table mali_dvfs_threshold[3];
+extern unsigned int mali_asv_group;
 
 unsigned int gv[3];
 
@@ -64,10 +65,30 @@ static ssize_t gpu_voltage_store(struct device *dev, struct device_attribute *at
 	return count;
 }
 
+static ssize_t gpu_asv_group_show(struct device *dev, struct device_attribute *attr, char *buf) {
+
+	return sprintf(buf, "%d\n", mali_asv_group);
+}
+
+static ssize_t gpu_asv_group_store(struct device *dev, struct device_attribute *attr, const char *buf,
+									size_t count) {
+	unsigned int ret, data;
+
+	ret = sscanf(buf, "%d", &data);
+	if (ret!= 1 || data < 0 || data > 7)
+		return -EINVAL;
+
+	update_mali_dvfs_table(data);
+
+	return count;
+}
+
 static DEVICE_ATTR(gpu_control, S_IRUGO | S_IWUGO, gpu_voltage_show, gpu_voltage_store);
+static DEVICE_ATTR(gpu_asv_group, S_IRUGO | S_IWUGO, gpu_asv_group_show, gpu_asv_group_store);
 
 static struct attribute *gpu_voltage_control_attributes[] = {
 	&dev_attr_gpu_control.attr,
+	&dev_attr_gpu_asv_group.attr,
 	NULL
 };
 
