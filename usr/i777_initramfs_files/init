@@ -18,12 +18,6 @@ fi
 
 busybox cpio -i < ${load_image}
 
-if busybox grep -q 1 /sys/class/power_supply/battery/batt_lp_charging ; then
-	# low power mode
-	busybox cp lpm.rc init.rc
-	busybox rm init.smdk4210.rc
-fi
-
 busybox umount /sys
 busybox umount /proc
 busybox date >>boot.txt
