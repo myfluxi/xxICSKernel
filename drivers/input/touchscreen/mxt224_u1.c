@@ -1350,6 +1350,7 @@ static void report_input_data(struct mxt224_data *data)
 				DVFS_LOCK_ID_TSP,
 				level);
 			copy_data->lock_status = 1;
+			level = ~0;
 		}
 	}
 }
