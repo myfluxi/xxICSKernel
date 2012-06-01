@@ -516,6 +516,8 @@ static void reset_breathing(void)
 	breathe_volt = breathe.min;
 	if (breathing_enabled)
 		change_touch_key_led_voltage(breathe.min);
+	else if (blinking_enabled)
+		change_touch_key_led_voltage(led_brightness);
 }
 
 static void led_fadeout(void)
