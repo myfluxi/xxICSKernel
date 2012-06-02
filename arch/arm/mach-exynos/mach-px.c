@@ -3317,52 +3317,37 @@ static struct platform_device sec_device_thermistor = {
 };
 #endif /* CONFIG_SEC_THERMISTOR */
 
+#ifdef CONFIG_KEYBOARD_GPIO
+#define GPIO_KEYS(_code, _gpio, _active_low, _iswake, _hook)		\
+{					\
+	.code = _code,			\
+	.gpio = _gpio,		\
+	.active_low = _active_low,	\
+	.type = EV_KEY,		\
+	.wakeup = _iswake,		\
+	.debounce_interval = 10,	\
+	.isr_hook = _hook		\
+}
 
-struct gpio_keys_button u1_buttons[] = {
-	{
-		.code = KEY_VOLUMEUP,
-		.gpio = GPIO_VOL_UP,
-		.active_low = 1,
-		.type = EV_KEY,
-		.wakeup = 1,
-		.isr_hook = sec_debug_check_crash_key,
-	},			/* vol up */
-	{
-		.code = KEY_VOLUMEDOWN,
-		.gpio = GPIO_VOL_DOWN,
-		.active_low = 1,
-		.type = EV_KEY,
-		.wakeup = 1,
-		.isr_hook = sec_debug_check_crash_key,
-	},			/* vol down */
-	{
-		.code = KEY_POWER,
-		.gpio = GPIO_nPOWER,
-		.active_low = 1,
-		.type = EV_KEY,
-		.wakeup = 1,
-		.isr_hook = sec_debug_check_crash_key,
-	},			/* power key */
-#ifndef	CONFIG_MACH_PX
-	{
-		.code = KEY_HOME,
-		.gpio = GPIO_OK_KEY,
-		.active_low = 1,
-		.type = EV_KEY,
-		.wakeup = 1,
-	},			/* ok key */
+struct gpio_keys_button px_buttons[] = {
+	GPIO_KEYS(KEY_VOLUMEUP, GPIO_VOL_UP,
+		1, 0, sec_debug_check_crash_key),
+	GPIO_KEYS(KEY_VOLUMEDOWN, GPIO_VOL_DOWN,
+		1, 0, sec_debug_check_crash_key),
+	GPIO_KEYS(KEY_POWER, GPIO_nPOWER,
+		1, 1, sec_debug_check_crash_key),
+};
+
+struct gpio_keys_platform_data px_keys_platform_data = {
+	.buttons	= px_buttons,
+	.nbuttons	 = ARRAY_SIZE(px_buttons),
+};
+
+struct platform_device px_gpio_keys = {
+	.name	= "gpio-keys",
+	.dev.platform_data = &px_keys_platform_data,
+};
 #endif
-};
-
-struct gpio_keys_platform_data u1_keypad_platform_data = {
-	u1_buttons,
-	ARRAY_SIZE(u1_buttons),
-};
-
-struct platform_device u1_keypad = {
-	.name = "gpio-keys",
-	.dev.platform_data = &u1_keypad_platform_data,
-};
 
 #ifdef CONFIG_SEC_DEV_JACK
 static void sec_set_jack_micbias(bool on)
@@ -6495,7 +6480,9 @@ static struct platform_device *smdkc210_devices[] __initdata = {
 	&s3c_device_ts1,
 #endif
 #endif
-	&u1_keypad,
+#ifdef CONFIG_KEYBOARD_GPIO
+	&px_gpio_keys,
+#endif
 	&s3c_device_rtc,
 	&s3c_device_wdt,
 #ifdef CONFIG_SND_SAMSUNG_AC97
