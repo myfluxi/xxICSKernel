@@ -66,7 +66,7 @@ static const struct vol_cur_map_desc buck1245_vol_cur_map_desc = {
 	.min = 650,	.step = 25,	.max = 2225,
 };
 static const struct vol_cur_map_desc buck37_vol_cur_map_desc = {
-	.min = 700,	.step = 50,	.max = 3900,
+	.min = 700,	.step = 25,	.max = 3900,
 };
 
 /* flash currents just aren't matching up right! */
