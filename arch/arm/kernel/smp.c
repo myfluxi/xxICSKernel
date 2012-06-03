@@ -120,20 +120,12 @@ int __cpuinit __cpu_up(unsigned int cpu)
 	 */
 	ret = boot_secondary(cpu, idle);
 	if (ret == 0) {
-		unsigned long timeout;
-
 		/*
 		 * CPU was successfully started, wait for it
 		 * to come online or time out.
 		 */
-		timeout = jiffies + HZ;
-		while (time_before(jiffies, timeout)) {
-			if (cpu_online(cpu))
-				break;
-
-			udelay(10);
-			barrier();
-		}
+		wait_for_completion_timeout(&cpu_running,
+						 msecs_to_jiffies(1000));
 
 		if (!cpu_online(cpu)) {
 			pr_crit("CPU%u: failed to come online\n", cpu);
