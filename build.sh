@@ -9,15 +9,13 @@ rm compile.log
 # Set Default Path
 TOP_DIR=$PWD
 KERNEL_PATH="/home/sarthak/Documents/xxKernelICS"
-
-# Set toolchain and root filesystem path
-#TOOLCHAIN="/media/Main_Storage/android_toolchains/arm-eabi-linaro-4.6.2/bin/arm-eabi-"
-# ROOTFS_PATH="/home/sarthak/Documents/xxICSInitramfs"
+$KBUILD_BUILD_VERSION="Cranium_testkeys#1"
 
 export KERNELDIR=$KERNEL_PATH
 
 export USE_SEC_FIPS_MODE=true
 
+make xxKernel_defconfig
 make -j80
 ./strip.sh
 

@@ -1,6 +1,6 @@
 #Change to corresponding path to the binary of your toolchain!
 
-echo " ---------  CRANIUM KERNEL MODULE STRIPPER FOR ARM-EABI-4.4.3 ---------- "
+echo " ---------  SHEDDING BLOAT FROM MODULES...NOW ---------- "
 
 for i in $(find . | grep .ko | grep './')
 do
