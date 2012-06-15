@@ -140,6 +140,9 @@ void exynos4_setup_mshci_set_power(struct platform_device *dev, int en)
 
 	if (pdata->int_power_gpio) {
 		if (en) {
+#ifdef CONFIG_MACH_Q1_BD
+			mdelay(20);
+#endif
 			/*CMD/CLK*/
 			for (gpio = EXYNOS4_GPK0(0); gpio < EXYNOS4_GPK0(2);
 					gpio++) {
