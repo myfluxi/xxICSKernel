@@ -1226,6 +1226,11 @@ static int __devinit mxt224_init_touch_driver(struct mxt224_data *data)
 	return ret;
 }
 
+extern void mdnie_toggle_negative(void);
+static unsigned int invert_start = 0;
+static unsigned int x_lo = 25;
+static unsigned int x_hi = 440;
+
 static void report_input_data(struct mxt224_data *data)
 {
 	int i;
@@ -1245,12 +1250,29 @@ static void report_input_data(struct mxt224_data *data)
 		if (TSP_STATE_INACTIVE == data->fingers[i].z)
 			continue;
 
+		// Slide-to-Invert gesture start
+		if (copy_data->touch_is_pressed_arr[i] == 1) {
+			if (max(data->fingers[0].x, data->fingers[1].x) < x_lo) {
+				invert_start = 1;
+				printk(KERN_ERR "[TSP] Invert toggle down at: %4d\n",
+								data->fingers[i].x);
+			}
+		}
+
 		/* for release */
 		if (data->fingers[i].z == TSP_STATE_RELEASE) {
 			input_mt_slot(data->input_dev, i);
 			input_mt_report_slot_state(data->input_dev,
 				MT_TOOL_FINGER, false);
 			data->fingers[i].z = TSP_STATE_INACTIVE;
+
+			// Slide-to-Invert trigger
+			if (invert_start == 1 && data->fingers[1].x > x_hi) {
+				mdnie_toggle_negative();
+				printk(KERN_ERR "[TSP] Invert toggle up at: %4d\n",
+								data->fingers[1].x);
+			}
+			invert_start = 0;
 		/* logging */
 #ifdef __TSP_DEBUG
 			printk(KERN_ERR "[TSP] Up[%d] %4d,%4d\n", i,
@@ -3263,6 +3285,31 @@ static ssize_t touch_lock_freq_store(struct device *dev,
 	return size;
 }
 
+static ssize_t invert_toggle_show(struct device *dev,
+				  struct device_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d %d\n", x_lo, x_hi);
+}
+
+static ssize_t invert_toggle_store(struct device *dev,
+				   struct device_attribute *attr,
+				   const char *buf, size_t size)
+{
+	int ret;
+	unsigned int value[2];
+
+	ret = sscanf(buf, "%d %d\n", &value[0], &value[1]);
+
+	if (ret != 2 || value[0] > value[1])
+		return -EINVAL;
+	else {
+		x_lo = value[0];
+		x_hi = value[1];
+	}
+
+	return size;
+}
+
 static DEVICE_ATTR(set_refer0, S_IRUGO | S_IWUSR | S_IWGRP,
 		   set_refer0_mode_show, NULL);
 static DEVICE_ATTR(set_delta0, S_IRUGO | S_IWUSR | S_IWGRP,
@@ -3338,6 +3385,8 @@ static DEVICE_ATTR(tsp_touch_config, S_IRUGO | S_IWUSR | S_IWGRP,
 	touch_config_show, touch_config_store);
 static DEVICE_ATTR(tsp_touch_freq, S_IRUGO | S_IWUSR | S_IWGRP,
 	touch_lock_freq_show, touch_lock_freq_store);
+static DEVICE_ATTR(tsp_invert_toggle, S_IRUGO | S_IWUSR | S_IWGRP,
+	invert_toggle_show, invert_toggle_store);
 
 static int sec_touchscreen_enable(struct mxt224_data *data)
 {
@@ -3744,6 +3793,10 @@ static int __devinit mxt224_probe(struct i2c_client *client,
 	if (device_create_file(sec_touchscreen, &dev_attr_tsp_touch_freq) < 0)
 		printk(KERN_ERR "Failed to create device file(%s)!\n",
 		       dev_attr_tsp_touch_freq.attr.name);
+
+	if (device_create_file(sec_touchscreen, &dev_attr_tsp_invert_toggle) < 0)
+		printk(KERN_ERR "Failed to create device file(%s)!\n",
+		       dev_attr_tsp_invert_toggle.attr.name);
 
 	if (device_create_file
 	    (sec_touchscreen, &dev_attr_tsp_firm_version_phone) < 0)
