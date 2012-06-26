@@ -1227,9 +1227,11 @@ static int __devinit mxt224_init_touch_driver(struct mxt224_data *data)
 }
 
 extern void mdnie_toggle_negative(void);
+extern void flash_led_buttons(unsigned int flash_timeout);
 static unsigned int invert_start = 0;
 static unsigned int x_lo = 25;
 static unsigned int x_hi = 440;
+static unsigned int flash_timeout = 0;
 
 static void report_input_data(struct mxt224_data *data)
 {
@@ -1374,6 +1376,8 @@ static void report_input_data(struct mxt224_data *data)
 			copy_data->lock_status = 1;
 			level = ~0;
 		}
+		if (flash_timeout)
+			flash_led_buttons(flash_timeout);
 	}
 }
 
@@ -3310,6 +3314,29 @@ static ssize_t invert_toggle_store(struct device *dev,
 	return size;
 }
 
+static ssize_t led_flash_timeout_show(struct device *dev,
+				  struct device_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n", flash_timeout);
+}
+
+static ssize_t led_flash_timeout_store(struct device *dev,
+				   struct device_attribute *attr,
+				   const char *buf, size_t size)
+{
+	int ret;
+	unsigned int value;
+
+	ret = sscanf(buf, "%d\n", &value);
+
+	if (ret != 1)
+		return -EINVAL;
+	else
+		flash_timeout = value;
+
+	return size;
+}
+
 static DEVICE_ATTR(set_refer0, S_IRUGO | S_IWUSR | S_IWGRP,
 		   set_refer0_mode_show, NULL);
 static DEVICE_ATTR(set_delta0, S_IRUGO | S_IWUSR | S_IWGRP,
@@ -3387,6 +3414,8 @@ static DEVICE_ATTR(tsp_touch_freq, S_IRUGO | S_IWUSR | S_IWGRP,
 	touch_lock_freq_show, touch_lock_freq_store);
 static DEVICE_ATTR(tsp_invert_toggle, S_IRUGO | S_IWUSR | S_IWGRP,
 	invert_toggle_show, invert_toggle_store);
+static DEVICE_ATTR(tsp_flash_timeout, S_IRUGO | S_IWUSR | S_IWGRP,
+	led_flash_timeout_show, led_flash_timeout_store);
 
 static int sec_touchscreen_enable(struct mxt224_data *data)
 {
@@ -3797,6 +3826,10 @@ static int __devinit mxt224_probe(struct i2c_client *client,
 	if (device_create_file(sec_touchscreen, &dev_attr_tsp_invert_toggle) < 0)
 		printk(KERN_ERR "Failed to create device file(%s)!\n",
 		       dev_attr_tsp_invert_toggle.attr.name);
+
+	if (device_create_file(sec_touchscreen, &dev_attr_tsp_flash_timeout) < 0)
+		printk(KERN_ERR "Failed to create device file(%s)!\n",
+		       dev_attr_tsp_flash_timeout.attr.name);
 
 	if (device_create_file
 	    (sec_touchscreen, &dev_attr_tsp_firm_version_phone) < 0)

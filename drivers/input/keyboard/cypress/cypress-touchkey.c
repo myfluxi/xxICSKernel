@@ -142,6 +142,8 @@ static void disable_touchkey_backlights(void);
 static struct wake_lock led_wake_lock;
 static DEFINE_SEMAPHORE(enable_sem);
 
+static DEFINE_MUTEX(touchkey_mutex);
+
 /* timer related declares */
 static struct timer_list led_timer;
 static void bl_off(struct work_struct *bl_off_work);
@@ -486,6 +488,13 @@ void touchkey_work_func(struct work_struct *p)
 	enable_irq(IRQ_TOUCH_INT);
 }
 
+void flash_led_buttons(unsigned int flash_timeout)
+{
+	change_touch_key_led_voltage(led_brightness);
+	enable_touchkey_backlights();
+	mod_timer(&led_timer, jiffies + msecs_to_jiffies(flash_timeout));
+}
+
 static irqreturn_t touchkey_interrupt(int irq, void *dummy)
 {
 	set_touchkey_debug('I');
@@ -524,12 +533,14 @@ static void led_fadeout(void)
 {
 	int i;
 
+	mutex_lock(&touchkey_mutex);
 	for (i = led_brightness; i >= BREATHING_MIN_VOLT; i -= 50) {
 		change_touch_key_led_voltage(i);
 		msleep(50);
 	}
 
 	disable_touchkey_backlights();
+	mutex_unlock(&touchkey_mutex);
 }
 
 static void bl_off(struct work_struct *bl_off_work)
