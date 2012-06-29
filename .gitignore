@@ -29,6 +29,7 @@ modules.builtin
 *.bz2
 *.lzma
 *.xz
+*.tar
 *.lzo
 *.patch
 *.gcno
@@ -45,6 +46,7 @@ modules.builtin
 /Module.markers
 /Module.symvers
 /build
+/zImage
 
 #
 # git files that we don't want to ignore even it they are dot-files
@@ -78,5 +80,11 @@ GSYMS
 GTAGS
 
 *.orig
+*.bak
 *~
+*.rej
+*.working
+*.test
+*.backup
+*.old
 \#*#
