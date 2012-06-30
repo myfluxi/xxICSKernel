@@ -540,6 +540,7 @@ static struct notifier_block exynos_cpufreq_policy_notifier = {
 
 static int exynos_cpufreq_cpu_init(struct cpufreq_policy *policy)
 {
+	int ret;
 	policy->cur = policy->min = policy->max = exynos_getspeed(policy->cpu);
 
 	cpufreq_frequency_table_get_attr(exynos_info->freq_table, policy->cpu);
@@ -560,7 +561,13 @@ static int exynos_cpufreq_cpu_init(struct cpufreq_policy *policy)
 		cpumask_setall(policy->cpus);
 	}
 
-	return cpufreq_frequency_table_cpuinfo(policy, exynos_info->freq_table);
+	ret = cpufreq_frequency_table_cpuinfo(policy, exynos_info->freq_table);
+
+	/* Safe default startup limits */
+	policy->max = CPU_SAFE_MAX_FREQ;
+	policy->min = CPU_SAFE_MIN_FREQ;
+
+	return ret;
 }
 
 static int exynos_cpufreq_reboot_notifier_call(struct notifier_block *this,
@@ -672,12 +679,11 @@ late_initcall(exynos_cpufreq_init);
 ssize_t show_UV_mV_table(struct cpufreq_policy *policy, char *buf)
 {
 	int i, len = 0;
-	if (buf)
-	{
-		for (i = exynos_info->max_support_idx; i<=exynos_info->min_support_idx; i++)
-		{
-			if(exynos_info->freq_table[i].frequency==CPUFREQ_ENTRY_INVALID) continue;
-			len += sprintf(buf + len, "%dmhz: %d mV\n", exynos_info->freq_table[i].frequency/1000,exynos_info->volt_table[i]/1000);
+	if (buf) {
+		for (i = exynos_info->max_support_idx; i<=exynos_info->min_support_idx; i++) {
+			if (exynos_info->freq_table[i].frequency==CPUFREQ_ENTRY_INVALID) continue;
+			len += sprintf(buf + len, "%dmhz: %d mV\n",
+				exynos_info->freq_table[i].frequency/1000,exynos_info->volt_table[i]/1000);
 		}
 	}
 	return len;
@@ -689,30 +695,22 @@ ssize_t store_UV_mV_table(struct cpufreq_policy *policy,
 	unsigned int ret = -EINVAL;
 	int i = 0;
 	int j = 0;
-	int u[6];
-	ret = sscanf(buf, "%d %d %d %d %d %d", &u[0], &u[1], &u[2], &u[3], &u[4], &u[5]);
-	if(ret != 6) {
-		ret = sscanf(buf, "%d %d %d %d %d", &u[0], &u[1], &u[2], &u[3], &u[4]);
-		if(ret != 5) {
-			ret = sscanf(buf, "%d %d %d %d", &u[0], &u[1], &u[2], &u[3]);
-			if( ret != 4) return -EINVAL;
-		}
-	}
+	int u[16];
+	ret = sscanf(buf, "%d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d\n",
+		&u[0], &u[1], &u[2], &u[3], &u[4], &u[5], &u[6], &u[7],
+			&u[8], &u[9], &u[10], &u[11], &u[12], &u[13], &u[14], &u[15]);
 
-	for( i = 0; i < 6; i++ )
-	{
+	if(ret != exynos_info->min_support_idx + 1)
+		 return -EINVAL;
+
+	for( i = 0; i < exynos_info->min_support_idx + 1; i++ ) {
 		if (u[i] > CPU_UV_MV_MAX / 1000)
-		{
 			u[i] = CPU_UV_MV_MAX / 1000;
-		}
 		else if (u[i] < CPU_UV_MV_MIN / 1000)
-		{
 			u[i] = CPU_UV_MV_MIN / 1000;
-		}
 	}
 
-	for( i = 0; i < ret; i++)
-	{
+	for( i = 0; i < ret; i++) {
 		while(exynos_info->freq_table[i+j].frequency==CPUFREQ_ENTRY_INVALID)
 			j++;
 		exynos_info->volt_table[i+j] = u[i]*1000;
