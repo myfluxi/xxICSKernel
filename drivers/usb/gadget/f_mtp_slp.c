@@ -88,18 +88,18 @@
 #endif
 /*-------------------------------------------------------------------------*/
 
-#define BULK_BUFFER_SIZE	 4096
+#define MTP_BULK_BUFFER_SIZE	 4096
 
 /* number of rx and tx requests to allocate */
-#define RX_REQ_MAX		 4
-#define TX_REQ_MAX		 4
+#define MTP_RX_REQ_MAX		 4
+#define MTP_TX_REQ_MAX		 4
 
-#define DRIVER_NAME		 "usb_mtp_gadget"
+#define MTP_DRIVER_NAME		 "usb_mtp_gadget"
 
 static const char mtp_longname[] = "mtp";
 
 static DEFINE_MUTEX(mtp_lock);
-static const char mtp_shortname[] = DRIVER_NAME;
+static const char mtp_shortname[] = MTP_DRIVER_NAME;
 static int mtp_pid;
 
 struct mtp_ep_descs {
@@ -424,7 +424,7 @@ static ssize_t mtpg_read(struct file *fp, char __user *buf,
 			if (!dev->mtp_func)
 				ret = -ENODEV;
 			else {
-				req->length = BULK_BUFFER_SIZE;
+				req->length = MTP_BULK_BUFFER_SIZE;
 				ret = usb_ep_queue(dev->mtp_func->bulk_out,
 							req, GFP_ATOMIC);
 			}
@@ -550,8 +550,8 @@ static ssize_t mtpg_write(struct file *fp, const char __user *buf,
 		}
 
 		if (req) {
-			if (count > BULK_BUFFER_SIZE)
-				xfer = BULK_BUFFER_SIZE;
+			if (count > MTP_BULK_BUFFER_SIZE)
+				xfer = MTP_BULK_BUFFER_SIZE;
 			else
 				xfer = count;
 
@@ -870,8 +870,8 @@ static void mtpg_complete_out(struct usb_ep *ep, struct usb_request *req)
 	wake_up(&dev->read_wq);
 }
 
-/* create_bulk_endpoints() must be used after function binded */
-static int create_bulk_endpoints(struct f_mtp *mtp_func,
+/* mtp_create_bulk_endpoints() must be used after function binded */
+static int mtp_create_bulk_endpoints(struct f_mtp *mtp_func,
 				 struct usb_endpoint_descriptor *in_desc,
 				 struct usb_endpoint_descriptor *out_desc,
 				 struct usb_endpoint_descriptor *intr_desc)
@@ -915,16 +915,17 @@ static int create_bulk_endpoints(struct f_mtp *mtp_func,
 	if (!mtp_func->notify_req)
 		return -ENOMEM;
 
-	for (i = 0; i < RX_REQ_MAX; i++) {
-		req = mtpg_request_new(mtp_func->bulk_out, BULK_BUFFER_SIZE);
+	for (i = 0; i < MTP_RX_REQ_MAX; i++) {
+		req = mtpg_request_new(mtp_func->bulk_out,
+					MTP_BULK_BUFFER_SIZE);
 		if (!req)
 			goto ep_alloc_fail_out;
 		req->complete = mtpg_complete_out;
 		mtp_req_put(dev, &mtp_func->bulk_out_q, req);
 	}
 
-	for (i = 0; i < TX_REQ_MAX; i++) {
-		req = mtpg_request_new(mtp_func->bulk_in, BULK_BUFFER_SIZE);
+	for (i = 0; i < MTP_TX_REQ_MAX; i++) {
+		req = mtpg_request_new(mtp_func->bulk_in, MTP_BULK_BUFFER_SIZE);
 		if (!req)
 			goto ep_alloc_fail_all;
 		req->complete = mtpg_complete_in;
@@ -1009,7 +1010,7 @@ static int mtpg_function_bind(struct usb_configuration *c,
 	mtpg_interface_desc.bInterfaceNumber = id;
 	mtp_func->allocated_intf_num = id;
 
-	rc = create_bulk_endpoints(mtp_func, &fs_mtpg_in_desc,
+	rc = mtp_create_bulk_endpoints(mtp_func, &fs_mtpg_in_desc,
 				   &fs_mtpg_out_desc, &int_fs_notify_desc);
 	if (rc) {
 		printk(KERN_ERR "mtpg unable to autoconfigure all endpoints\n");

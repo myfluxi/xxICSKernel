@@ -5,3 +5,5 @@ piggy.lzo
 piggy.lzma
 vmlinux
 vmlinux.lds
+ashldi3.S
+piggy.xzkern

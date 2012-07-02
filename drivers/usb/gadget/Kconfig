@@ -319,7 +319,8 @@ config USB_GADGET_EXYNOS_SS_UDC
         depends on EXYNOS_DEV_SS_UDC
         select USB_GADGET_DUALSPEED
         help
-          DWC SuperSpeed USB 3.0 Device controller.
+	  The Samsung Exynos SuperSpeed USB 3.0 device controller
+	  integrated into the Exynos5 series SoC.
 
 config USB_EXYNOS_SS_UDC
         tristate
