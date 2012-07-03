@@ -56,8 +56,8 @@ static ssize_t gpu_clock_store(struct device *dev, struct device_attribute *attr
 	unsigned int ret = -EINVAL;
 	int i = 0;
 
-	if ( (ret=sscanf(buf, "%d%% %d%% %d%% %d%%", &g[0], &g[1], &g[2], &g[3])) == 4 ) i=1;
-	else if ( (ret=sscanf(buf, "%d%% %d%%", &g[0], &g[1])) == 2 ) i=1;
+	if ( (ret=sscanf(buf, "%d%% %d%% %d%% %d%%\n", &g[0], &g[1], &g[2], &g[3])) == 4 ) i=1;
+	else if ( (ret=sscanf(buf, "%d%% %d%%\n", &g[0], &g[1])) == 2 ) i=1;
 	
 	if(i) {
 		if(g[1]<0 || g[0]>100) return -EINVAL;
@@ -70,8 +70,8 @@ static ssize_t gpu_clock_store(struct device *dev, struct device_attribute *attr
 		}		
 	} 
 	else {
-	  if ( (ret=sscanf(buf, "%d %d %d", &g[0], &g[1], &g[2]))!=3 )
-	    if( (ret=sscanf(buf, "%d %d", &g[0], &g[1]))!=2 )
+	  if ( (ret=sscanf(buf, "%d %d %d\n", &g[0], &g[1], &g[2]))!=3 )
+	    if( (ret=sscanf(buf, "%d %d\n", &g[0], &g[1]))!=2 )
 			return -EINVAL;
 		/* safety floor and ceiling - netarchy */
 		for( i = 0; i < 3; i++ ) {
@@ -108,7 +108,7 @@ static ssize_t gpu_staycount_store(struct device *dev, struct device_attribute *
 	unsigned int ret = -EINVAL;
 	int i = 0, i1, i2, i3;
 
-    if ( (ret=sscanf(buf, "%d %d %d", &i1, &i2, &i3))!=3 )
+    if ( (ret=sscanf(buf, "%d %d %d\n", &i1, &i2, &i3))!=3 )
 		return -EINVAL;
 	mali_dvfs_staycount[0].staycount = i1;
 	mali_dvfs_staycount[1].staycount = i2;

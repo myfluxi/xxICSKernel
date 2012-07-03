@@ -48,7 +48,7 @@ static ssize_t gpu_voltage_store(struct device *dev, struct device_attribute *at
 	ret = sscanf(buf, "%d %d %d\n", &gv[0], &gv[1], &gv[2]);
 	if(ret!=3) 
 	{
-		ret = sscanf(buf, "%d %d", &gv[0], &gv[1]);
+		ret = sscanf(buf, "%d %d\n", &gv[0], &gv[1]);
 		if(ret!=2) return -EINVAL;
 	}
 	
