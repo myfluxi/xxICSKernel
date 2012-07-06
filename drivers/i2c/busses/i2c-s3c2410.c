@@ -35,6 +35,7 @@
 #include <linux/cpufreq.h>
 #include <linux/slab.h>
 #include <linux/io.h>
+#include <linux/i2c/mxt224_u1.h>
 
 #include <asm/irq.h>
 
@@ -83,6 +84,10 @@ struct s3c24xx_i2c {
 	struct notifier_block	freq_transition;
 #endif
 };
+
+#ifdef CONFIG_PM
+extern bool s2w_enabled;
+#endif
 
 /* default platform data removed, dev should always carry data. */
 
@@ -540,7 +545,7 @@ static int s3c24xx_i2c_doxfer(struct s3c24xx_i2c *i2c,
 	int spins = 20;
 	int ret;
 
-	if (i2c->suspended)
+	if (i2c->suspended && !s2w_enabled)
 		return -EIO;
 
 	ret = s3c24xx_i2c_set_master(i2c);
@@ -627,7 +632,7 @@ static int s3c24xx_i2c_xfer(struct i2c_adapter *adap,
 	int retry;
 	int ret;
 
-	if (i2c->suspended)
+	if (i2c->suspended && !s2w_enabled)
 	{
 		dev_err(i2c->dev, "I2C is not initialzed.\n");
 		dump_i2c_register(i2c);
@@ -1057,7 +1062,7 @@ static int s3c24xx_i2c_suspend_noirq(struct device *dev)
 	return 0;
 }
 
-static int s3c24xx_i2c_resume(struct device *dev)
+static int s3c24xx_i2c_resume_noirq(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct s3c24xx_i2c *i2c = platform_get_drvdata(pdev);
@@ -1072,7 +1077,7 @@ static int s3c24xx_i2c_resume(struct device *dev)
 
 static const struct dev_pm_ops s3c24xx_i2c_dev_pm_ops = {
 	.suspend_noirq = s3c24xx_i2c_suspend_noirq,
-	.resume = s3c24xx_i2c_resume,
+	.resume_noirq = s3c24xx_i2c_resume_noirq,
 };
 
 #define S3C24XX_DEV_PM_OPS (&s3c24xx_i2c_dev_pm_ops)

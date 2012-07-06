@@ -30,6 +30,7 @@
 #include <linux/workqueue.h>
 #include <linux/uaccess.h>
 #include <linux/sensor/cm3663.h>
+#include <linux/i2c/mxt224_u1.h>
 #if defined(CONFIG_MACH_S2PLUS)
 #include <linux/sensor/sensors_core.h>
 #endif
@@ -533,6 +534,9 @@ static enum hrtimer_restart cm3663_prox_timer_func(struct hrtimer *timer)
 	return HRTIMER_RESTART;
 }
 
+extern bool s2w_enabled;
+bool s2w_prox_near = false;
+
 /* interrupt happened due to transition/change of near/far proximity state */
 irqreturn_t cm3663_irq_thread_fn(int irq, void *data)
 {
@@ -549,6 +553,10 @@ irqreturn_t cm3663_irq_thread_fn(int irq, void *data)
 	/* for debugging : going to be removed */
 	cm3663_i2c_read(ip, REGS_PS_DATA, &tmp);
 	pr_err("%s: proximity value = %d, val = %d\n", __func__, tmp, val);
+
+	/* for slide2wake */
+	if (s2w_enabled)
+		s2w_prox_near = val ? 0 : 1;
 
 	/* 0 is close, 1 is far */
 	input_report_abs(ip->proximity_input_dev, ABS_DISTANCE, val);
