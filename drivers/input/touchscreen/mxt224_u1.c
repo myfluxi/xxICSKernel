@@ -1282,7 +1282,7 @@ static unsigned int flash_timeout = 0;
 
 static void report_input_data(struct mxt224_data *data)
 {
-	int i;
+	int i, ret = 0;
 	static unsigned int level = ~0;
 	bool tsp_state = false;
 	bool check_press = false;
@@ -1290,8 +1290,11 @@ static void report_input_data(struct mxt224_data *data)
 	u16 size = 1;
 	u8 value;
 
-	if (s2w_enabled)
-		down(&s2w_sem);
+	if (s2w_enabled) {
+		ret = down_trylock(&s2w_sem);
+		if (ret)
+			printk(KERN_ERR "[TSP] slide2invert SEM cannot be aquired\n");
+	}
 
 	touch_is_pressed = 0;
 
