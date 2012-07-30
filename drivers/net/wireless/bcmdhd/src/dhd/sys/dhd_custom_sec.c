@@ -403,7 +403,7 @@ int dhd_write_rdwr_korics_macaddr(struct dhd_info *dhd, struct ether_addr *mac)
 	char randommac[3]    = {0};
 	char buf[18]         = {0};
 	char *filepath       = "/efs/wifi/.mac.info";
-
+	int is_zeromac       = 0;
 	int ret = 0;
 	/* MAC address copied from efs/wifi.mac.info */
 	fp = filp_open(filepath, O_RDONLY, 0);
@@ -450,6 +450,17 @@ int dhd_write_rdwr_korics_macaddr(struct dhd_info *dhd, struct ether_addr *mac)
 	 * (the existed file or just created file)
 	 */
 	    ret = kernel_read(fp, 0, buf, 18);
+		/* to prevent abnormal string display when mac address
+		 * is displayed on the screen.
+		 */
+		buf[17] = '\0';
+		/* Remove security log */
+		/*DHD_ERROR(("Read MAC : [%s] [%d] \r\n", buf,
+			strncmp(buf, "00:00:00:00:00:00", 17)));*/
+		if ((buf[0] == '\0') ||
+			(strncmp(buf, "00:00:00:00:00:00", 17) == 0)) {
+			is_zeromac = 1;
+		}
 	}
 
 	if (ret)
@@ -467,11 +478,16 @@ int dhd_write_rdwr_korics_macaddr(struct dhd_info *dhd, struct ether_addr *mac)
 	if (fp)
 		filp_close(fp, NULL);
 
-	/* Writing Newly generated MAC ID to the Dongle */
-	if (0 == _dhd_set_mac_address(dhd, 0, mac))
-		DHD_INFO(("dhd_bus_start: MACID is overwritten\n"));
-	else
-		DHD_ERROR(("dhd_bus_start: _dhd_set_mac_address() failed\n"));
+	if (!is_zeromac) {
+		/* Writing Newly generated MAC ID to the Dongle */
+		if (0 == _dhd_set_mac_address(dhd, 0, mac))
+			DHD_INFO(("dhd_bus_start: MACID is overwritten\n"));
+		else
+			DHD_ERROR(("dhd_bus_start: _dhd_set_mac_address() "
+				"failed\n"));
+	} else {
+		DHD_ERROR(("dhd_bus_start:Is ZeroMAC BypassWrite.mac.info!\n"));
+	}
 
 	return 0;
 }
@@ -648,7 +664,7 @@ static int dhd_write_mac_file(const char *filepath, const char *buf, int buf_len
 	fp = filp_open(filepath, O_RDWR | O_CREAT, 0666);
 	/*File is always created.*/
 	if (IS_ERR(fp)) {
-		DHD_ERROR(("[WIFI] %s: File open error\n", filepath));
+		DHD_ERROR(("[WIFI] File open error\n"));
 		return -1;
 	} else {
 		oldfs = get_fs();
@@ -657,11 +673,9 @@ static int dhd_write_mac_file(const char *filepath, const char *buf, int buf_len
 		if (fp->f_mode & FMODE_WRITE) {
 			ret = fp->f_op->write(fp, buf, buf_len, &fp->f_pos);
 			if (ret < 0)
-				DHD_ERROR(("[WIFI] Failed to write CIS[%s]\
-into '%s'\n", buf, filepath));
+				DHD_ERROR(("[WIFI] Failed to write CIS. \n"));
 			else
-				DHD_ERROR(("[WIFI] MAC [%s] written\
-into '%s'\n", buf, filepath));
+				DHD_ERROR(("[WIFI] MAC written. \n"));
 		}
 		set_fs(oldfs);
 	}
@@ -677,19 +691,13 @@ int dhd_check_module_mac(dhd_pub_t *dhd)
 	int ret = -1;
 	unsigned char cis_buf[250] = {0};
 	unsigned char mac_buf[20] = {0};
+	unsigned char otp_mac_buf[20] = {0};
 	const char *macfilepath = "/efs/wifi/.mac.info";
 
 	/* Try reading out from CIS */
 	cis_rw_t *cish = (cis_rw_t *)&cis_buf[8];
 	struct file *fp_mac = NULL;
 
-	fp_mac = filp_open(macfilepath, O_RDONLY, 0);
-	if (!IS_ERR(fp_mac)) {
-		kernel_read(fp_mac, fp_mac->f_pos, mac_buf, sizeof(mac_buf));
-		DHD_ERROR(("[WIFI].mac.info file already exist : [%s]\n",
-			mac_buf));
-		return 0;
-	}
 	cish->source = 0;
 	cish->byteoff = 0;
 	cish->nbytes = sizeof(cis_buf);
@@ -700,6 +708,7 @@ int dhd_check_module_mac(dhd_pub_t *dhd)
 	if (ret < 0) {
 		DHD_ERROR(("%s: CIS reading failed, err=%d\n", __func__,
 			ret));
+		return ret;
 	} else {
 		unsigned char mac_id[6] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 #ifdef DUMP_CIS
@@ -712,11 +721,21 @@ int dhd_check_module_mac(dhd_pub_t *dhd)
 		mac_id[4] = cis_buf[CIS_MAC_OFFSET + 4];
 		mac_id[5] = cis_buf[CIS_MAC_OFFSET + 5];
 
-		sprintf(mac_buf, "%02X:%02X:%02X:%02X:%02X:%02X\n",
+		sprintf(otp_mac_buf, "%02X:%02X:%02X:%02X:%02X:%02X\n",
 			mac_id[0], mac_id[1], mac_id[2], mac_id[3], mac_id[4],
 			mac_id[5]);
-		DHD_ERROR(("[WIFI]mac_id is setted from OTP: [%s]\n", mac_buf));
-		dhd_write_mac_file(macfilepath, mac_buf, sizeof(mac_buf));
+		DHD_ERROR(("[WIFI]mac_id is setted from OTP \n"));
+	}
+
+	fp_mac = filp_open(macfilepath, O_RDONLY, 0);
+	if (!IS_ERR(fp_mac)) {
+		DHD_ERROR(("[WIFI]Check Mac address in .mac.info \n"));
+		kernel_read(fp_mac, fp_mac->f_pos, mac_buf, sizeof(mac_buf));
+
+		if (strncmp(mac_buf , otp_mac_buf , 17) != 0) {
+			DHD_ERROR(("[WIFI]file MAC is wrong. Write OTP MAC in .mac.info \n"));
+			dhd_write_mac_file(macfilepath, otp_mac_buf, sizeof(otp_mac_buf));
+		}
 	}
 
 	return ret;
